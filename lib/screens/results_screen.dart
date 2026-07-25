@@ -32,7 +32,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 3000),
     );
     _scaleAnimation = Tween<double>(
       begin: 0.9,
@@ -40,10 +40,12 @@ class _ResultsScreenState extends State<ResultsScreen>
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _progressAnimation = CurvedAnimation(
       parent: _animController,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutBack,
     );
 
-    _animController.forward();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) _animController.forward();
+    });
     _fetchVideos();
     _checkBookmarkStatus();
   }
@@ -240,7 +242,8 @@ class _ResultsScreenState extends State<ResultsScreen>
                     Icon(
                       widget.aiData['errorType'] == 'offline'
                           ? Icons.wifi_off_rounded
-                          : Icons.signal_cellular_connected_no_internet_0_bar_rounded,
+                          : Icons
+                                .signal_cellular_connected_no_internet_0_bar_rounded,
                       color: Colors.redAccent.withOpacity(0.8),
                       size: 64,
                     ),

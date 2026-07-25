@@ -1,22 +1,27 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:async/async.dart';
 import '../config/app_config.dart';
+import 'ai/ai_provider.dart';
+import 'ai/hugging_face_provider.dart';
+import 'ai/gemini_provider.dart';
 
 class AIService {
-  late final GenerativeModel? _cloudModel;
+  late final AIProvider _provider;
 
   AIService() {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey != null && apiKey.isNotEmpty) {
-      _cloudModel = GenerativeModel(model: 'gemini-3.5-flash', apiKey: apiKey);
+    final huggingFaceApiKey = dotenv.env['HUGGINGFACE_API_KEY'];
+    final hasValidHuggingFaceKey = huggingFaceApiKey != null &&
+        huggingFaceApiKey.isNotEmpty &&
+        huggingFaceApiKey != 'YOUR_HUGGINGFACE_API_KEY_HERE';
+
+    if (hasValidHuggingFaceKey) {
+      _provider = HuggingFaceProvider();
     } else {
-      _cloudModel = null;
+      _provider = GeminiProvider();
     }
   }
 
@@ -52,7 +57,7 @@ class AIService {
     final connectivityResult = await (Connectivity().checkConnectivity());
 
     // OFFLINE MODE - fallback to error
-    if (connectivityResult == ConnectivityResult.none || _cloudModel == null) {
+    if (connectivityResult == ConnectivityResult.none) {
       return {
         'error': true,
         'errorType': 'offline',
@@ -61,37 +66,12 @@ class AIService {
       };
     }
 
-    // ONLINE MODE - Real Gemini API
+    // ONLINE MODE - Use selected AI Provider
     try {
-      final imageBytes = await File(imagePath).readAsBytes();
-
-      final prompt = TextPart('''
-Analyze this image of a fish found in $location. Return a raw JSON object (no markdown, no backticks) with exactly this structure:
-{
-  "englishName": "Common english name",
-  "localName": "Regional name based on $location (include native script if applicable)",
-  "freshnessScore": 0.95, // float between 0.0 and 1.0 based on eye cloudiness, gill color, skin texture
-  "freshnessStatus": "Green / 95% Fresh", // e.g., Green/Yellow/Red
-  "freshnessEvidence": "Clear eyes • bright red gills", // bullet points separated by ' • '
-  "bestCuts": ["List of 3 authentic local fishmonger cuts commonly used in $location markets (e.g. if in West Bengal, use real Bengali terms like 'Peti', 'Gada', etc. instead of generic 'steaks'). Format strictly as: LocalName (English translation)"],
-  "idealFor": ["List of authentic local recipes based on $location. Format strictly as: LocalName (English translation)"]
-}
-''');
-
-      final imagePart = DataPart('image/jpeg', imageBytes);
-
-      final response = await _cloudModel!.generateContent([
-        Content.multi([prompt, imagePart]),
-      ]).timeout(const Duration(seconds: 15));
-
-      final responseText = response.text ?? '{}';
-      final cleanJson = responseText
-          .replaceAll(RegExp(r'```(?:json)?|```'), '')
-          .trim();
-
-      final Map<String, dynamic> data = jsonDecode(cleanJson);
-      data['isOffline'] = false;
-      return data;
+      final response = await _provider
+          .analyzeFish(imagePath, location)
+          .timeout(const Duration(seconds: 15));
+      return response;
     } on TimeoutException catch (_) {
       return {
         'error': true,
@@ -100,14 +80,14 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
         'isOffline': false,
       };
     } on SocketException catch (_) {
-       return {
+      return {
         'error': true,
         'errorType': 'low_network',
         'message': 'Network connection is too slow',
         'isOffline': false,
       };
     } catch (e) {
-      debugPrint('Gemini API Error: $e');
+      debugPrint('AI Provider Error: $e');
       return {
         'englishName': 'Unknown Fish',
         'localName': 'Unknown',

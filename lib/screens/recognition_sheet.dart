@@ -66,16 +66,19 @@ class RecognitionSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 
-                Text(
-                  aiData['error'] == true ? 'NETWORK ERROR' : (aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
-                  style: GoogleFonts.inter(
-                    fontSize: 56,
-                    height: 1.0,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -1,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    aiData['error'] == true ? 'NETWORK ERROR' : (aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
+                    style: GoogleFonts.inter(
+                      fontSize: 42,
+                      height: 1.1,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -1,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Container(
