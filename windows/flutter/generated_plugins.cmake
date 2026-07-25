@@ -3,9 +3,18 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  connectivity_plus
+  file_selector_windows
+  flutter_inappwebview_windows
+  gal
+  geolocator_windows
+  isar_flutter_libs
+  url_launcher_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
+  tflite_flutter
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
