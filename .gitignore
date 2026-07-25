@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 mcp_config.json
+.env
 
 # IntelliJ related
 *.iml
