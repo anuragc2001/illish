@@ -53,12 +53,12 @@ class RecognitionSheet extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(flex: 3),
-                Icon(Icons.blur_on, color: AppTheme.neonCyan.withOpacity(0.8), size: 28),
+                Icon(aiData['error'] == true ? Icons.error_outline : Icons.blur_on, color: aiData['error'] == true ? Colors.redAccent.withOpacity(0.8) : AppTheme.neonCyan.withOpacity(0.8), size: 28),
                 const SizedBox(height: 4),
                 Text(
-                  'SCAN COMPLETE',
+                  aiData['error'] == true ? 'SCAN FAILED' : 'SCAN COMPLETE',
                   style: GoogleFonts.inter(
-                    color: AppTheme.neonCyan,
+                    color: aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                     letterSpacing: 2,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -67,7 +67,7 @@ class RecognitionSheet extends StatelessWidget {
                 const SizedBox(height: 24),
                 
                 Text(
-                  aiData['englishName']?.toUpperCase() ?? 'UNKNOWN',
+                  aiData['error'] == true ? 'NETWORK ERROR' : (aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
                   style: GoogleFonts.inter(
                     fontSize: 56,
                     height: 1.0,
@@ -81,19 +81,19 @@ class RecognitionSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppTheme.neonCyan.withOpacity(0.1),
+                    color: aiData['error'] == true ? Colors.redAccent.withOpacity(0.1) : AppTheme.neonCyan.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: AppTheme.neonCyan.withOpacity(0.3)),
+                    border: Border.all(color: aiData['error'] == true ? Colors.redAccent.withOpacity(0.3) : AppTheme.neonCyan.withOpacity(0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on, color: AppTheme.neonCyan, size: 14),
+                      Icon(aiData['error'] == true ? Icons.warning_amber : Icons.location_on, color: aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        aiData['localName'] ?? 'Unknown',
+                        aiData['error'] == true ? (aiData['errorType'] == 'offline' ? 'Offline' : 'High Latency') : (aiData['localName'] ?? 'Unknown'),
                         style: GoogleFonts.inter(
-                          color: AppTheme.neonCyan,
+                          color: aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),

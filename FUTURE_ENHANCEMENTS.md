@@ -17,7 +17,7 @@ When the user opens Screen 1 (Bazaar Viewfinder), the camera feed should continu
 
 ---
 
-## 2. On-Device Offline ML Model (Full Offline Species & Freshness Recognition)
+## 2. [CANCELLED] On-Device Offline ML Model (Full Offline Species & Freshness Recognition)
 
 ### Concept
 Currently, when the user has no internet connection, `AIService` falls back to simulated offline data. Adding a custom embedded TensorFlow Lite (`.tflite`) model will allow full offline identification of common regional fish (e.g., Rohu, Catla, Hilsa/Ilish, Pomfret) and basic freshness estimations directly on the device.
@@ -62,7 +62,7 @@ When pushing new screens (like the `ResultsScreen`), the camera feed currently c
 
 ---
 
-## 5. Graceful Network & Offline Failures
+## 5. [COMPLETED] Graceful Network & Offline Failures
 
 ### Concept
 If the Gemini API fails entirely, the app currently falls back to a simulated scan instead of explicitly alerting the user that the network request failed.

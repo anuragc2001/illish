@@ -225,29 +225,81 @@ class _ResultsScreenState extends State<ResultsScreen>
       backgroundColor: AppTheme.background,
       body: isError || widget.aiData.isEmpty
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: Colors.redAccent,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Couldn't identify this fish.",
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.neonCyan,
-                      foregroundColor: Colors.black,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      widget.aiData['errorType'] == 'offline'
+                          ? Icons.wifi_off_rounded
+                          : Icons.signal_cellular_connected_no_internet_0_bar_rounded,
+                      color: Colors.redAccent.withOpacity(0.8),
+                      size: 64,
                     ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Try Again"),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    Text(
+                      widget.aiData['errorType'] == 'offline'
+                          ? "Seems you are offline"
+                          : "Network connection is too slow",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.aiData['errorType'] == 'offline'
+                          ? "Please connect to the internet to analyze this fish. Offline models are currently unavailable."
+                          : "The server took too long to respond. Please check your connection and try again.",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: Colors.white54,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.neonCyan,
+                          borderRadius: BorderRadius.circular(100),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.neonCyan.withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            "Retry Connection",
+                            style: GoogleFonts.inter(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           : SingleChildScrollView(

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -50,16 +51,12 @@ class AIService {
 
     final connectivityResult = await (Connectivity().checkConnectivity());
 
-    // OFFLINE MODE - fallback to mock/basic info for now (simulate TFLite)
+    // OFFLINE MODE - fallback to error
     if (connectivityResult == ConnectivityResult.none || _cloudModel == null) {
       return {
-        'englishName': 'Rohu (Offline Guess)',
-        'localName': 'Unknown',
-        'freshnessScore': 0.85,
-        'freshnessStatus': 'Good (Requires Internet for deep check)',
-        'freshnessEvidence': 'Basic offline scan',
-        'bestCuts': ['Standard cut'],
-        'idealFor': ['Curry'],
+        'error': true,
+        'errorType': 'offline',
+        'message': 'Seems you are offline',
         'isOffline': true,
       };
     }
@@ -85,11 +82,9 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
 
       final response = await _cloudModel!.generateContent([
         Content.multi([prompt, imagePart]),
-      ]);
+      ]).timeout(const Duration(seconds: 15));
 
       final responseText = response.text ?? '{}';
-
-      // Clean up markdown code blocks if gemini included them despite instructions
       final cleanJson = responseText
           .replaceAll(RegExp(r'```(?:json)?|```'), '')
           .trim();
@@ -97,6 +92,20 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
       final Map<String, dynamic> data = jsonDecode(cleanJson);
       data['isOffline'] = false;
       return data;
+    } on TimeoutException catch (_) {
+      return {
+        'error': true,
+        'errorType': 'low_network',
+        'message': 'Network connection is too slow',
+        'isOffline': false,
+      };
+    } on SocketException catch (_) {
+       return {
+        'error': true,
+        'errorType': 'low_network',
+        'message': 'Network connection is too slow',
+        'isOffline': false,
+      };
     } catch (e) {
       debugPrint('Gemini API Error: $e');
       return {
@@ -104,7 +113,7 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
         'localName': 'Unknown',
         'freshnessScore': 0.0,
         'freshnessStatus': 'Analysis Failed',
-        'freshnessEvidence': 'Network or API error occurred',
+        'freshnessEvidence': 'API error occurred',
         'bestCuts': [],
         'idealFor': [],
         'isOffline': false,
