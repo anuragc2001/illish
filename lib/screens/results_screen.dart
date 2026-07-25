@@ -32,7 +32,7 @@ class _ResultsScreenState extends State<ResultsScreen>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 3500),
     );
     _scaleAnimation = Tween<double>(
       begin: 0.9,
@@ -153,10 +153,10 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   void _launchVideo(String? videoId) async {
     if (videoId == null || videoId == 'mock') return;
-    
+
     final Uri appUrl = Uri.parse('youtube://watch?v=$videoId');
     final Uri webUrl = Uri.parse('https://www.youtube.com/watch?v=$videoId');
-    
+
     try {
       // Force native app check via custom URI scheme
       bool launched = await launchUrl(
@@ -1060,10 +1060,10 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
 
   void _launchVideo(String? videoId) async {
     if (videoId == null) return;
-    
+
     final Uri appUrl = Uri.parse('youtube://watch?v=$videoId');
     final Uri webUrl = Uri.parse('https://www.youtube.com/watch?v=$videoId');
-    
+
     try {
       // Force native app check via custom URI scheme
       bool launched = await launchUrl(
