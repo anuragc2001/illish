@@ -13,14 +13,18 @@ class AIService {
   late final AIProvider _provider;
 
   AIService() {
+    final preferredProvider = dotenv.env['AI_PROVIDER']?.toLowerCase();
+    
     final huggingFaceApiKey = dotenv.env['HUGGINGFACE_API_KEY'];
     final hasValidHuggingFaceKey = huggingFaceApiKey != null &&
         huggingFaceApiKey.isNotEmpty &&
         huggingFaceApiKey != 'YOUR_HUGGINGFACE_API_KEY_HERE';
 
-    if (hasValidHuggingFaceKey) {
+    if (preferredProvider == AppConfig.kProviderHuggingFace && hasValidHuggingFaceKey) {
       _provider = HuggingFaceProvider();
     } else {
+      // Fallback to Gemini if huggingface is preferred but the key is missing/invalid, 
+      // or if gemini is explicitly preferred in the .env file.
       _provider = GeminiProvider();
     }
   }
