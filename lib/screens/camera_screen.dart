@@ -1099,20 +1099,73 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
   bool _isLoading = true;
   bool _isClearing = false;
 
+  late final ScrollController _scrollController;
+  static const int _pageSize = 15;
+  int _offset = 0;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    if (_isRecent) {
-      _items = await DBService.getRecentScans();
-    } else {
-      _items = await DBService.getBookmarks();
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 200) {
+      _loadMoreData();
     }
-    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _offset = 0;
+      _hasMore = true;
+      _items = [];
+    });
+    final newItems = _isRecent
+        ? await DBService.getRecentScans(offset: 0, limit: _pageSize)
+        : await DBService.getBookmarks(offset: 0, limit: _pageSize);
+
+    if (mounted) {
+      setState(() {
+        _items = newItems;
+        _offset = newItems.length;
+        _hasMore = newItems.length == _pageSize;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMoreData() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    final newItems = _isRecent
+        ? await DBService.getRecentScans(offset: _offset, limit: _pageSize)
+        : await DBService.getBookmarks(offset: _offset, limit: _pageSize);
+
+    if (mounted) {
+      setState(() {
+        _items.addAll(newItems);
+        _offset += newItems.length;
+        _hasMore = newItems.length == _pageSize;
+        _isLoadingMore = false;
+      });
+    }
   }
 
   @override
@@ -1210,8 +1263,24 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                           ? const Offset(-1.0, 0.0)
                           : Offset.zero,
                       child: ListView.builder(
-                        itemCount: _items.length,
+                        controller: _scrollController,
+                        itemCount: _items.length + (_isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          if (index == _items.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.neonCyan,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
                           final item = _items[index];
                           return Dismissible(
                             key: Key(item.id.toString()),
@@ -1308,6 +1377,9 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
       onTap: () {
         if (!isActive) {
           setState(() => _isRecent = isRecentTab);
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(0);
+          }
           _loadData();
         }
       },

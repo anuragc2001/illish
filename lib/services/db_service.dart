@@ -40,12 +40,24 @@ class DBService {
     });
   }
 
-  static Future<List<ScanRecord>> getRecentScans() async {
-    return await isar.scanRecords.filter().isBookmarkEqualTo(false).sortByTimestampDesc().limit(10).findAll();
+  static Future<List<ScanRecord>> getRecentScans({int offset = 0, int limit = 15}) async {
+    return await isar.scanRecords
+        .filter()
+        .isBookmarkEqualTo(false)
+        .sortByTimestampDesc()
+        .offset(offset)
+        .limit(limit)
+        .findAll();
   }
 
-  static Future<List<ScanRecord>> getBookmarks() async {
-    return await isar.scanRecords.filter().isBookmarkEqualTo(true).sortByTimestampDesc().findAll();
+  static Future<List<ScanRecord>> getBookmarks({int offset = 0, int limit = 15}) async {
+    return await isar.scanRecords
+        .filter()
+        .isBookmarkEqualTo(true)
+        .sortByTimestampDesc()
+        .offset(offset)
+        .limit(limit)
+        .findAll();
   }
 
   static Future<bool> isBookmarked(String? imagePath) async {

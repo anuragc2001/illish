@@ -82,7 +82,7 @@ If the Gemini API fails entirely, the app currently falls back to a simulated sc
 
 ---
 
-## 7. Local Database Pagination (Isar)
+## 7. [COMPLETED] Local Database Pagination (Isar)
 
 ### Concept
 Fetching all bookmarks at once via `db_service.dart` works fine for a pilot, but could drop frames if hundreds of items are saved over time.
