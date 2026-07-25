@@ -1,11 +1,15 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:gal/gal.dart' as gal;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../core/theme.dart';
 import '../services/ai_service.dart';
@@ -20,15 +24,27 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderStateMixin {
+class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMixin {
   CameraController? _controller;
+  int _cameraIndex = 0;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   
+  Offset? _focusPoint;
+  late AnimationController _focusController;
+  late AnimationController _locAnimController;
+  late Animation<double> _locAnimation;
+  
   String _currentLocation = 'Locating...';
+  List<String> _locationHistory = [];
   bool _isFlashOn = false;
   bool _isPickerOpen = false;
   final ImagePicker _picker = ImagePicker();
+
+  double _currentZoom = 1.0;
+  double _minZoom = 1.0;
+  double _maxZoom = 5.0;
+  double _baseZoom = 1.0;
 
   @override
   void initState() {
@@ -44,23 +60,83 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _focusController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _focusController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) _focusController.reverse();
+        });
+      }
+    });
+
+    _locAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _locAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _locAnimController, curve: Curves.elasticOut)
+    );
+
+    _loadLocationHistory();
+  }
+
+  Future<void> _loadLocationHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _locationHistory = prefs.getStringList('location_history') ?? [];
+      });
+    }
+  }
+
+  Future<void> _saveLocationHistory(String newLoc) async {
+    if (newLoc.isEmpty || newLoc.contains('denied') || newLoc == 'Locating...') return;
+    final prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList('location_history') ?? [];
+    history.remove(newLoc);
+    history.insert(0, newLoc);
+    if (history.length > 5) history = history.sublist(0, 5);
+    await prefs.setStringList('location_history', history);
+    if (mounted) {
+      setState(() {
+        _locationHistory = history;
+      });
+    }
+  }
+
+  void _triggerLocationAnimation() {
+    if (mounted) {
+      _locAnimController.forward().then((_) {
+        if (mounted) _locAnimController.reverse();
+      });
+    }
   }
 
   Future<void> _initCamera() async {
     if (cameras.isNotEmpty) {
       _controller = CameraController(
-        cameras[0],
+        cameras[_cameraIndex],
         ResolutionPreset.high,
         enableAudio: false,
       );
       try {
         await _controller!.initialize();
         await _controller!.setFocusMode(FocusMode.auto);
+        _minZoom = await _controller!.getMinZoomLevel();
+        final maxZ = await _controller!.getMaxZoomLevel();
+        _maxZoom = maxZ.clamp(1.0, 5.0);
         if (mounted) setState(() {});
       } on CameraException catch (e) {
         debugPrint('Camera exception: ${e.code}');
       }
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (cameras.length < 2) return;
+    setState(() {
+      _cameraIndex = (_cameraIndex + 1) % cameras.length;
+    });
+    // Wait for the new camera to initialize
+    await _initCamera();
   }
 
   Future<void> _initLocation() async {
@@ -92,14 +168,28 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks.first;
+        final loc = '${place.locality}, ${place.administrativeArea}';
         if (mounted) {
           setState(() {
-            _currentLocation = '${place.locality}, ${place.administrativeArea}';
+            _currentLocation = loc;
           });
+          _saveLocationHistory(loc);
+          _triggerLocationAnimation();
         }
       }
     } catch (e) {
       if (mounted) setState(() => _currentLocation = 'Unknown Location');
+    }
+  }
+
+  Future<void> _setZoom(double zoom) async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    final clamped = zoom.clamp(_minZoom, _maxZoom);
+    setState(() => _currentZoom = clamped);
+    try {
+      await _controller!.setZoomLevel(clamped);
+    } catch (e) {
+      debugPrint('Zoom error: $e');
     }
   }
 
@@ -152,105 +242,122 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
   }
   
   void _processImage(String imagePath, {bool fromCamera = false}) async {
-    showDialog(
-      context: context, 
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.neonCyan))
-    );
     
-    // Save image to device gallery silently only if taken from camera
+    final aiService = AIService();
+    final operation = aiService.analyzeFish(imagePath, _currentLocation);
+    bool isCancelled = false;
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return FadeTransition(
+          opacity: animation,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    width: 280,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.neonCyan.withOpacity(0.2), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.neonCyan.withOpacity(0.1),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _HUDThumbnail(imagePath),
+                        const SizedBox(height: 24),
+                        Text(
+                          "Analyzing freshness...",
+                          style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 32),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(100),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: CupertinoButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(100),
+                              onPressed: () {
+                                isCancelled = true;
+                                operation.cancel();
+                                Navigator.pop(context);
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.close, color: Colors.white, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text("Cancel & Retake", style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    final result = await operation.valueOrCancellation();
+    if (!mounted || isCancelled) return;
+    
+    // Save image to device gallery silently only if taken from camera AND not cancelled
     if (fromCamera) {
       try {
         final hasAccess = await gal.Gal.hasAccess();
-        if (!hasAccess) {
-          await gal.Gal.requestAccess();
-        }
+        if (!hasAccess) await gal.Gal.requestAccess();
         await gal.Gal.putImage(imagePath);
       } catch (e) {
         debugPrint('Failed to auto-save to gallery: $e');
       }
     }
     
-    final aiService = AIService();
-    final result = await aiService.analyzeFish(imagePath, _currentLocation);
-    result['imagePath'] = imagePath;
-    
-    if (!mounted) return;
     Navigator.pop(context); // close dialog
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => RecognitionSheet(aiData: result),
-    );
+    if (result != null) {
+      result['imagePath'] = imagePath;
+      await DBService.saveScan(result, isBookmark: false); // Fix 4: save to history automatically
+      
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => RecognitionSheet(aiData: result),
+      );
+    }
   }
 
   void _showRecentScans() async {
-    final scans = await DBService.getRecentScans();
-    if (!mounted) return;
-    
+    // We'll pass the context to a stateful widget to handle tabs
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.cardBackground,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        minChildSize: 0.4,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text("Recent Scans", style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            if (scans.isEmpty)
-              Expanded(
-                child: Center(
-                  child: Text("No scans yet. Scan a fish to get started.", style: GoogleFonts.inter(color: Colors.white54)),
-                ),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: scans.length,
-                  itemBuilder: (context, index) {
-                    final scan = scans[index];
-                    return ListTile(
-                      leading: scan.imagePath != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(File(scan.imagePath!), width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image, color: Colors.white54)),
-                          )
-                        : const Icon(Icons.set_meal, color: Colors.white54),
-                      title: Text(scan.englishName ?? 'Unknown', style: GoogleFonts.inter(color: Colors.white)),
-                      subtitle: Text('${scan.localName ?? ''} • ${scan.freshnessScore != null ? (scan.freshnessScore! * 100).toInt() : 0}% Fresh\n${scan.timestamp.toString().split('.')[0]}', style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                      isThreeLine: true,
-                      onTap: () {
-                        Navigator.pop(context);
-                        final aiData = {
-                          'englishName': scan.englishName,
-                          'localName': scan.localName,
-                          'freshnessScore': scan.freshnessScore,
-                          'freshnessStatus': scan.freshnessStatus,
-                          'freshnessEvidence': scan.freshnessEvidence,
-                          'bestCuts': scan.bestCuts,
-                          'idealFor': scan.idealFor,
-                          'imagePath': scan.imagePath,
-                          'isOffline': false,
-                        };
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: aiData)));
-                      },
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
+      builder: (context) => const SavedItemsSheet(),
     );
   }
 
@@ -258,6 +365,8 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
   void dispose() {
     _controller?.dispose();
     _pulseController.dispose();
+    _focusController.dispose();
+    _locAnimController.dispose();
     super.dispose();
   }
 
@@ -289,19 +398,64 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
             child: SizedBox(
               width: size.width,
               height: size.width * _controller!.value.aspectRatio,
-              child: GestureDetector(
-                onTapDown: (details) async {
-                  if (_controller == null || !_controller!.value.isInitialized) return;
-                  final double x = details.localPosition.dx / size.width;
-                  final double y = details.localPosition.dy / (size.width * _controller!.value.aspectRatio);
-                  try {
-                    await _controller!.setFocusPoint(Offset(x, y));
-                    await _controller!.setExposurePoint(Offset(x, y));
-                  } catch (e) {
-                    debugPrint('Focus error: $e');
-                  }
-                },
-                child: CameraPreview(_controller!),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    onScaleStart: (details) {
+                      _baseZoom = _currentZoom;
+                    },
+                    onScaleUpdate: (details) {
+                      _setZoom(_baseZoom * details.scale);
+                    },
+                    onDoubleTap: _switchCamera,
+                    onTapDown: (details) async {
+                      if (_controller == null || !_controller!.value.isInitialized) return;
+                      final double x = details.localPosition.dx / size.width;
+                      final double y = details.localPosition.dy / (size.width * _controller!.value.aspectRatio);
+                      setState(() => _focusPoint = details.localPosition);
+                      _focusController.forward(from: 0.0);
+                      try {
+                        await _controller!.setFocusPoint(Offset(x, y));
+                        await _controller!.setExposurePoint(Offset(x, y));
+                        await _controller!.setFocusMode(FocusMode.auto);
+                        await _controller!.setExposureMode(ExposureMode.auto);
+                      } catch (e) {
+                        debugPrint('Focus error: $e');
+                      }
+                    },
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                      child: _controller != null && _controller!.value.isInitialized
+                          ? CameraPreview(
+                              _controller!,
+                              key: ValueKey<int>(_cameraIndex),
+                            )
+                          : Container(key: const ValueKey('empty'), color: Colors.black),
+                    ),
+                  ),
+                  if (_focusPoint != null)
+                    Positioned(
+                      left: _focusPoint!.dx - 25,
+                      top: _focusPoint!.dy - 25,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: 1.5, end: 1.0).animate(CurvedAnimation(parent: _focusController, curve: Curves.easeOut)),
+                        child: FadeTransition(
+                          opacity: _focusController,
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.yellowAccent, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -316,11 +470,13 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
               children: [
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.maybePop(context),
-                      child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
+                    if (!Platform.isIOS)
+                      GestureDetector(
+                        onTap: () => SystemNavigator.pop(),
+                        child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                      ),
+                    if (!Platform.isIOS)
+                      const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () {
                         showModalBottomSheet(
@@ -337,15 +493,43 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
                                 const SizedBox(height: 16),
                                 ListTile(
                                   leading: const Icon(Icons.my_location, color: AppTheme.neonCyan),
-                                  title: Text("Current Location", style: GoogleFonts.inter(color: Colors.white)),
-                                  subtitle: Text(_currentLocation, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                                  onTap: () => Navigator.pop(context),
+                                  title: Text("Current Location", style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  subtitle: Text("Detect using GPS", style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    setState(() => _currentLocation = "Locating...");
+                                    _initLocation();
+                                  },
+                                ),
+                                const Divider(color: Colors.white10),
+                                if (_locationHistory.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: Text("RECENT", style: GoogleFonts.inter(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ),
+                                  ..._locationHistory.map((loc) => ListTile(
+                                    leading: const Icon(Icons.history, color: Colors.white54),
+                                    title: Text(loc, style: GoogleFonts.inter(color: Colors.white)),
+                                    onTap: () {
+                                      setState(() => _currentLocation = loc);
+                                      _saveLocationHistory(loc);
+                                      _triggerLocationAnimation();
+                                      Navigator.pop(context);
+                                    },
+                                  )),
+                                  const Divider(color: Colors.white10),
+                                ],
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  child: Text("NEARBY CITIES", style: GoogleFonts.inter(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold)),
                                 ),
                                 ListTile(
                                   leading: const Icon(Icons.location_city, color: Colors.white54),
                                   title: Text("Kolkata, West Bengal", style: GoogleFonts.inter(color: Colors.white)),
                                   onTap: () {
                                     setState(() => _currentLocation = "Kolkata, West Bengal");
+                                    _saveLocationHistory("Kolkata, West Bengal");
+                                    _triggerLocationAnimation();
                                     Navigator.pop(context);
                                   },
                                 ),
@@ -364,7 +548,10 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.location_on, color: Colors.white, size: 16),
+                            ScaleTransition(
+                              scale: _locAnimation,
+                              child: const Icon(Icons.location_on, color: Colors.white, size: 16),
+                            ),
                             const SizedBox(width: 8),
                             Text(_currentLocation, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14)),
                             const SizedBox(width: 4),
@@ -432,6 +619,34 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
             right: 0,
             child: Column(
               children: [
+                // Zoom Pills (1x / 2x Macro mode)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [1.0, 2.0].map((z) {
+                    final isSelected = (_currentZoom - z).abs() < 0.2;
+                    return GestureDetector(
+                      onTap: () => _setZoom(z),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.neonCyan : Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: isSelected ? AppTheme.neonCyan : Colors.white24, width: 1),
+                        ),
+                        child: Text(
+                          '${z.toInt()}x',
+                          style: GoogleFonts.inter(
+                            color: isSelected ? Colors.black : Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Row(
@@ -439,7 +654,15 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
                     children: [
                       GestureDetector(
                         onTap: _pickFromGallery,
-                        child: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 28)
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white24, width: 1),
+                          ),
+                          child: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 24)
+                        ),
                       ),
                       GestureDetector(
                         onTap: _takePictureAndIdentify,
@@ -468,7 +691,20 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
                               height: 64,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white.withOpacity(0.8),
+                                border: Border.all(color: Colors.white, width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.neonCyan.withOpacity(0.5),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.6),
+                                ),
                               ),
                             ),
                           ),
@@ -476,11 +712,19 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
                       ),
                       GestureDetector(
                         onTap: _toggleFlash,
-                        child: Icon(
-                          _isFlashOn ? Icons.flash_on : Icons.flash_off, 
-                          color: Colors.white, 
-                          size: 28
-                        )
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white24, width: 1),
+                          ),
+                          child: Icon(
+                            _isFlashOn ? Icons.flash_on : Icons.flash_off, 
+                            color: Colors.white, 
+                            size: 24
+                          )
+                        ),
                       ),
                     ],
                   ),
@@ -513,6 +757,193 @@ class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderSt
           bottomLeft: (isBottom && !isRight) ? const Radius.circular(12) : Radius.zero,
           bottomRight: (isBottom && isRight) ? const Radius.circular(12) : Radius.zero,
         )
+      ),
+    );
+  }
+}
+
+class _HUDThumbnail extends StatefulWidget {
+  final String imagePath;
+  const _HUDThumbnail(this.imagePath);
+
+  @override
+  State<_HUDThumbnail> createState() => _HUDThumbnailState();
+}
+
+class _HUDThumbnailState extends State<_HUDThumbnail> with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat(reverse: true);
+  }
+  
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, child) {
+        return Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.neonCyan.withOpacity(0.1 + 0.3 * _anim.value),
+                blurRadius: 10 + 20 * _anim.value,
+                spreadRadius: 2 + 5 * _anim.value,
+              )
+            ]
+          ),
+          child: child,
+        );
+      },
+      child: ClipOval(
+        child: Image.file(File(widget.imagePath), fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class SavedItemsSheet extends StatefulWidget {
+  const SavedItemsSheet({super.key});
+
+  @override
+  State<SavedItemsSheet> createState() => _SavedItemsSheetState();
+}
+
+class _SavedItemsSheetState extends State<SavedItemsSheet> {
+  bool _isRecent = true; // true = Recent Scans, false = Bookmarks
+  List<dynamic> _items = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    if (_isRecent) {
+      _items = await DBService.getRecentScans();
+    } else {
+      _items = await DBService.getBookmarks();
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // We use a fixed height container rather than DraggableScrollableSheet
+    // to fix the swipe-down dismiss animation stutter (Fix 12).
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildTab("Recent Scans", true),
+                const SizedBox(width: 16),
+                _buildTab("Bookmarks", false),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+          Expanded(
+            child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppTheme.neonCyan))
+              : _items.isEmpty
+                ? Center(
+                    child: Text(
+                      _isRecent ? "No scans yet." : "No bookmarks yet.",
+                      style: GoogleFonts.inter(color: Colors.white54)
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _items.length,
+                    itemBuilder: (context, index) {
+                      final item = _items[index];
+                      return Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          leading: item.imagePath != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(File(item.imagePath!), width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image, color: Colors.white54)),
+                              )
+                            : const Icon(Icons.set_meal, color: Colors.white54),
+                          title: Text(item.englishName ?? 'Unknown', style: GoogleFonts.inter(color: Colors.white)),
+                          subtitle: Text('${item.localName ?? ''} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh', style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+                          isThreeLine: false,
+                          onTap: () {
+                            Navigator.pop(context);
+                            final aiData = {
+                              'englishName': item.englishName,
+                              'localName': item.localName,
+                              'freshnessScore': item.freshnessScore,
+                              'freshnessStatus': item.freshnessStatus,
+                              'freshnessEvidence': item.freshnessEvidence,
+                              'bestCuts': item.bestCuts,
+                              'idealFor': item.idealFor,
+                              'imagePath': item.imagePath,
+                              'isOffline': false,
+                            };
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: aiData)));
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(String title, bool isRecentTab) {
+    final isActive = _isRecent == isRecentTab;
+    return GestureDetector(
+      onTap: () {
+        if (!isActive) {
+          setState(() => _isRecent = isRecentTab);
+          _loadData();
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.neonCyan.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: isActive ? AppTheme.neonCyan : Colors.transparent),
+        ),
+        child: Text(
+          title,
+          style: GoogleFonts.inter(
+            color: isActive ? AppTheme.neonCyan : Colors.white54,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }

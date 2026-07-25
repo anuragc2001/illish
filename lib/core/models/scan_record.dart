@@ -19,4 +19,5 @@ class ScanRecord {
   
   DateTime timestamp = DateTime.now();
   bool isSynced = false;
+  bool isBookmark = false;
 }

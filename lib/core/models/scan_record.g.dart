@@ -52,23 +52,28 @@ const ScanRecordSchema = CollectionSchema(
       name: r'imagePath',
       type: IsarType.string,
     ),
-    r'isSynced': PropertySchema(
+    r'isBookmark': PropertySchema(
       id: 7,
+      name: r'isBookmark',
+      type: IsarType.bool,
+    ),
+    r'isSynced': PropertySchema(
+      id: 8,
       name: r'isSynced',
       type: IsarType.bool,
     ),
     r'localName': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'localName',
       type: IsarType.string,
     ),
     r'region': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'region',
       type: IsarType.string,
     ),
     r'timestamp': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'timestamp',
       type: IsarType.dateTime,
     )
@@ -159,10 +164,11 @@ void _scanRecordSerialize(
   writer.writeString(offsets[4], object.freshnessStatus);
   writer.writeStringList(offsets[5], object.idealFor);
   writer.writeString(offsets[6], object.imagePath);
-  writer.writeBool(offsets[7], object.isSynced);
-  writer.writeString(offsets[8], object.localName);
-  writer.writeString(offsets[9], object.region);
-  writer.writeDateTime(offsets[10], object.timestamp);
+  writer.writeBool(offsets[7], object.isBookmark);
+  writer.writeBool(offsets[8], object.isSynced);
+  writer.writeString(offsets[9], object.localName);
+  writer.writeString(offsets[10], object.region);
+  writer.writeDateTime(offsets[11], object.timestamp);
 }
 
 ScanRecord _scanRecordDeserialize(
@@ -180,10 +186,11 @@ ScanRecord _scanRecordDeserialize(
   object.id = id;
   object.idealFor = reader.readStringList(offsets[5]) ?? [];
   object.imagePath = reader.readStringOrNull(offsets[6]);
-  object.isSynced = reader.readBool(offsets[7]);
-  object.localName = reader.readStringOrNull(offsets[8]);
-  object.region = reader.readStringOrNull(offsets[9]);
-  object.timestamp = reader.readDateTime(offsets[10]);
+  object.isBookmark = reader.readBool(offsets[7]);
+  object.isSynced = reader.readBool(offsets[8]);
+  object.localName = reader.readStringOrNull(offsets[9]);
+  object.region = reader.readStringOrNull(offsets[10]);
+  object.timestamp = reader.readDateTime(offsets[11]);
   return object;
 }
 
@@ -211,10 +218,12 @@ P _scanRecordDeserializeProp<P>(
     case 7:
       return (reader.readBool(offset)) as P;
     case 8:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 9:
       return (reader.readStringOrNull(offset)) as P;
     case 10:
+      return (reader.readStringOrNull(offset)) as P;
+    case 11:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1513,6 +1522,16 @@ extension ScanRecordQueryFilter
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> isBookmarkEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isBookmark',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> isSyncedEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -1949,6 +1968,18 @@ extension ScanRecordQuerySortBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsBookmark() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isBookmark', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsBookmarkDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isBookmark', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
@@ -2075,6 +2106,18 @@ extension ScanRecordQuerySortThenBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsBookmark() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isBookmark', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsBookmarkDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isBookmark', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
@@ -2174,6 +2217,12 @@ extension ScanRecordQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByIsBookmark() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isBookmark');
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isSynced');
@@ -2250,6 +2299,12 @@ extension ScanRecordQueryProperty
   QueryBuilder<ScanRecord, String?, QQueryOperations> imagePathProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'imagePath');
+    });
+  }
+
+  QueryBuilder<ScanRecord, bool, QQueryOperations> isBookmarkProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isBookmark');
     });
   }
 

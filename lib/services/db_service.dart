@@ -14,7 +14,7 @@ class DBService {
     );
   }
 
-  static Future<void> saveScan(Map<String, dynamic> aiData) async {
+  static Future<void> saveScan(Map<String, dynamic> aiData, {bool isBookmark = false}) async {
     final record = ScanRecord()
       ..imagePath = aiData['imagePath']
       ..englishName = aiData['englishName']
@@ -24,7 +24,8 @@ class DBService {
       ..freshnessEvidence = aiData['freshnessEvidence']
       ..bestCuts = List<String>.from(aiData['bestCuts'] ?? [])
       ..idealFor = List<String>.from(aiData['idealFor'] ?? [])
-      ..timestamp = DateTime.now();
+      ..timestamp = DateTime.now()
+      ..isBookmark = isBookmark;
 
     await isar.writeTxn(() async {
       await isar.scanRecords.put(record);
@@ -32,7 +33,24 @@ class DBService {
   }
 
   static Future<List<ScanRecord>> getRecentScans() async {
-    return await isar.scanRecords.where().sortByTimestampDesc().findAll();
+    return await isar.scanRecords.filter().isBookmarkEqualTo(false).sortByTimestampDesc().limit(10).findAll();
+  }
+
+  static Future<List<ScanRecord>> getBookmarks() async {
+    return await isar.scanRecords.filter().isBookmarkEqualTo(true).sortByTimestampDesc().findAll();
+  }
+
+  static Future<bool> isBookmarked(String? imagePath) async {
+    if (imagePath == null) return false;
+    final count = await isar.scanRecords.filter().imagePathEqualTo(imagePath).isBookmarkEqualTo(true).count();
+    return count > 0;
+  }
+
+  static Future<void> removeBookmark(String? imagePath) async {
+    if (imagePath == null) return;
+    await isar.writeTxn(() async {
+      await isar.scanRecords.filter().imagePathEqualTo(imagePath).isBookmarkEqualTo(true).deleteAll();
+    });
   }
 
   static Future<String?> getCachedRecipes(String query) async {

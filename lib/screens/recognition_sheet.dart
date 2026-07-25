@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
-import 'payment_sheet.dart';
+import 'results_screen.dart';
 
 class RecognitionSheet extends StatelessWidget {
   final Map<String, dynamic> aiData;
@@ -17,9 +17,8 @@ class RecognitionSheet extends StatelessWidget {
         onVerticalDragUpdate: (details) {
           if (details.primaryDelta! < -10) {
             Navigator.pop(context);
-            Navigator.push(context, PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) => PaymentScreen(aiData: aiData),
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => ResultsScreen(aiData: aiData),
             ));
           }
         },
@@ -35,34 +34,14 @@ class RecognitionSheet extends StatelessWidget {
               ),
             ),
             
-            // Top Bar
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 24),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Center Content
-            SafeArea(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  const Spacer(flex: 3),
                   Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const Spacer(flex: 3),
                       Icon(Icons.blur_on, color: AppTheme.neonCyan.withOpacity(0.8), size: 28),
                       const SizedBox(height: 4),
                       Text(
@@ -74,11 +53,9 @@ class RecognitionSheet extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  Text(
+                      const SizedBox(height: 24),
+                      
+                      Text(
                     aiData['englishName']?.toUpperCase() ?? 'UNKNOWN',
                     style: GoogleFonts.inter(
                       fontSize: 56,
@@ -105,9 +82,8 @@ class RecognitionSheet extends StatelessWidget {
                   GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(context, PageRouteBuilder(
-                        opaque: false,
-                        pageBuilder: (_, __, ___) => PaymentScreen(aiData: aiData),
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => ResultsScreen(aiData: aiData),
                       ));
                     },
                     child: Container(
@@ -175,6 +151,26 @@ class RecognitionSheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
+                    ],
+                  ),
+                  Positioned(
+                    top: 8,
+                    left: 16,
+                    right: 16,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+                          onPressed: () {},
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

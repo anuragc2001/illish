@@ -31,3 +31,22 @@ Currently, when the user has no internet connection, `AIService` falls back to s
   3. Preprocess captured image (resize to 224x224, normalize RGB values).
   4. Run tensor inference to get species confidence score and freshness index offline.
   5. Return result structured identically to Gemini's cloud response so the rest of the app renders seamlessly.
+
+---
+
+## 3. Sleek Apple-Style Cancelable AI Processing Overlay
+
+### Concept
+Replace the basic `CircularProgressIndicator` full-screen dialog with an ultra-sleek, frosted-glass Apple HUD overlay during AI processing. If the user accidentally takes a photo or wants to retake it immediately, they can tap a subtle, intuitive "Retake" / "Cancel" button to abort the network request and return instantly to the camera viewfinder.
+
+### UI & UX Design (Apple Design Language)
+- **Visuals**: A floating glassmorphic pill/card (`BackdropFilter` + `sf_pro` styling) centered on screen with a soft ambient neon glow.
+- **Micro-Animations**: Shimmering scanning beam or pulsing radial halo around a thumbnail of the captured photo.
+- **Controls**: A subtle, pill-shaped `"Cancel & Retake"` button at the bottom of the card (`CupertinoButton` style with a soft `X` icon).
+
+### Technical Approach
+- **Cancelable Async Request**: Use a `CancelableOperation` from `package:async/async` (or an `http.Client` with `CancelToken` / `AbortController`) inside `AIService`.
+- **State Handling**: 
+  1. Tapping `"Cancel & Retake"` immediately cancels the active Gemini API call.
+  2. Dismisses the HUD overlay using a smooth fade-out transition.
+  3. Resets camera state so the user can immediately re-align and take a new photo without delay.
