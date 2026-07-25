@@ -9,12 +9,16 @@ class HuggingFaceProvider implements AIProvider {
   final String modelUrl;
 
   HuggingFaceProvider()
-      : apiKey = dotenv.env['HUGGINGFACE_API_KEY'] ?? '',
-        modelUrl = dotenv.env['HUGGINGFACE_MODEL_URL'] ??
-            'https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-11B-Vision-Instruct';
+    : apiKey = dotenv.env['HUGGINGFACE_API_KEY'] ?? '',
+      modelUrl =
+          dotenv.env['HUGGINGFACE_MODEL_URL'] ??
+          'https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-11B-Vision-Instruct';
 
   @override
-  Future<Map<String, dynamic>> analyzeFish(String imagePath, String location) async {
+  Future<Map<String, dynamic>> analyzeFish(
+    String imagePath,
+    String location,
+  ) async {
     if (apiKey.isEmpty || apiKey == 'YOUR_HUGGINGFACE_API_KEY_HERE') {
       throw Exception('Missing Hugging Face API Key. Please add it to .env');
     }
@@ -22,7 +26,8 @@ class HuggingFaceProvider implements AIProvider {
     final imageBytes = await File(imagePath).readAsBytes();
     final base64Image = base64Encode(imageBytes);
 
-    final prompt = '''
+    final prompt =
+        '''
 Analyze this image of a fish found in $location. Return a raw JSON object (no markdown, no backticks) with exactly this structure:
 {
   "englishName": "Common english name",
@@ -42,16 +47,13 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        "inputs": {
-          "image": base64Image,
-          "text": prompt
-        }
+        "inputs": {"image": base64Image, "text": prompt},
       }),
     );
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
-      
+
       String generatedText = '';
       if (result is List && result.isNotEmpty) {
         generatedText = result[0]['generated_text'] ?? '';
@@ -59,32 +61,37 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
         generatedText = result['generated_text'] ?? '';
       }
 
-      final cleanJson = generatedText.replaceAll(RegExp(r'```(?:json)?|```'), '').trim();
-      
+      final cleanJson = generatedText
+          .replaceAll(RegExp(r'```(?:json)?|```'), '')
+          .trim();
+
       final jsonStartIndex = cleanJson.indexOf('{');
       final jsonEndIndex = cleanJson.lastIndexOf('}') + 1;
-      
+
       if (jsonStartIndex == -1 || jsonEndIndex == 0) {
         throw Exception('Failed to parse JSON from Hugging Face response.');
       }
-      
+
       final jsonStr = cleanJson.substring(jsonStartIndex, jsonEndIndex);
       final Map<String, dynamic> data = jsonDecode(jsonStr);
-      
+
       // Attempt to format "Rui (রুই)" into englishName="Rui (Rohu)", localName="রুই"
       final english = data['englishName']?.toString();
       final local = data['localName']?.toString();
-      
-      if (english != null && local != null && local.contains('(') && local.contains(')')) {
+
+      if (english != null &&
+          local != null &&
+          local.contains('(') &&
+          local.contains(')')) {
         final parts = local.split('(');
         String part1 = parts[0].trim();
         String part2 = parts[1].replaceAll(')', '').trim();
-        
+
         bool part2IsEnglish = RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(part2);
-        
+
         String trans;
         String native;
-        
+
         if (part2IsEnglish) {
           trans = part2;
           native = part1;
@@ -92,15 +99,17 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
           trans = part1;
           native = part2;
         }
-        
+
         data['englishName'] = '$trans ($english)';
         data['localName'] = native;
       }
-      
+
       data['isOffline'] = false;
       return data;
     } else {
-      throw Exception('HF API Error: ${response.statusCode} - ${response.body}');
+      throw Exception(
+        'HF API Error: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 }

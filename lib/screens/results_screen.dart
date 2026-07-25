@@ -153,19 +153,24 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   void _launchVideo(String? videoId) async {
     if (videoId == null || videoId == 'mock') return;
-    final Uri url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+    
+    final Uri appUrl = Uri.parse('youtube://watch?v=$videoId');
+    final Uri webUrl = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+    
     try {
+      // Force native app check via custom URI scheme
       bool launched = await launchUrl(
-        url,
-        mode: LaunchMode.externalNonBrowserApplication,
+        appUrl,
+        mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+        // Fallback to web browser
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      debugPrint("Could not launch $url: $e");
+      debugPrint("Could not launch native YouTube app: $e");
       try {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       } catch (_) {}
     }
   }
@@ -1055,19 +1060,24 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
 
   void _launchVideo(String? videoId) async {
     if (videoId == null) return;
-    final Uri url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+    
+    final Uri appUrl = Uri.parse('youtube://watch?v=$videoId');
+    final Uri webUrl = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+    
     try {
+      // Force native app check via custom URI scheme
       bool launched = await launchUrl(
-        url,
-        mode: LaunchMode.externalNonBrowserApplication,
+        appUrl,
+        mode: LaunchMode.externalApplication,
       );
       if (!launched) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+        // Fallback to web browser
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      debugPrint("Could not launch $url: $e");
+      debugPrint("Could not launch native YouTube app: $e");
       try {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+        await launchUrl(webUrl, mode: LaunchMode.externalApplication);
       } catch (_) {}
     }
   }

@@ -18,7 +18,10 @@ class GeminiProvider implements AIProvider {
   }
 
   @override
-  Future<Map<String, dynamic>> analyzeFish(String imagePath, String location) async {
+  Future<Map<String, dynamic>> analyzeFish(
+    String imagePath,
+    String location,
+  ) async {
     if (_cloudModel == null) {
       throw Exception('Gemini API Key is missing or invalid.');
     }
@@ -52,21 +55,24 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
     final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(text);
     if (jsonMatch != null) {
       final Map<String, dynamic> data = jsonDecode(jsonMatch.group(0)!);
-      
+
       // Attempt to format "Rui (রুই)" into englishName="Rui (Rohu)", localName="রুই"
       final english = data['englishName']?.toString();
       final local = data['localName']?.toString();
-      
-      if (english != null && local != null && local.contains('(') && local.contains(')')) {
+
+      if (english != null &&
+          local != null &&
+          local.contains('(') &&
+          local.contains(')')) {
         final parts = local.split('(');
         String part1 = parts[0].trim();
         String part2 = parts[1].replaceAll(')', '').trim();
-        
+
         bool part2IsEnglish = RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(part2);
-        
+
         String trans;
         String native;
-        
+
         if (part2IsEnglish) {
           trans = part2;
           native = part1;
@@ -74,11 +80,11 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
           trans = part1;
           native = part2;
         }
-        
+
         data['englishName'] = '$trans ($english)';
         data['localName'] = native;
       }
-      
+
       data['isOffline'] = false;
       return data;
     }
