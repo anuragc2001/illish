@@ -9,8 +9,9 @@ class GeminiProvider implements AIProvider {
 
   GeminiProvider() {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
+    final modelName = dotenv.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash';
     if (apiKey != null && apiKey.isNotEmpty) {
-      _cloudModel = GenerativeModel(model: 'gemini-3.5-flash', apiKey: apiKey);
+      _cloudModel = GenerativeModel(model: modelName, apiKey: apiKey);
     } else {
       _cloudModel = null;
     }
