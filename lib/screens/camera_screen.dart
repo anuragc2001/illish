@@ -24,17 +24,18 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMixin {
+class _CameraScreenState extends State<CameraScreen>
+    with TickerProviderStateMixin {
   CameraController? _controller;
   int _cameraIndex = 0;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  
+
   Offset? _focusPoint;
   late AnimationController _focusController;
   late AnimationController _locAnimController;
   late Animation<double> _locAnimation;
-  
+
   String _currentLocation = 'Locating...';
   List<String> _locationHistory = [];
   bool _isFlashOn = false;
@@ -57,12 +58,15 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _focusController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _focusController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _focusController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         Future.delayed(const Duration(milliseconds: 700), () {
@@ -71,9 +75,12 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       }
     });
 
-    _locAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _locAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _locAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _locAnimController, curve: Curves.elasticOut)
+      CurvedAnimation(parent: _locAnimController, curve: Curves.elasticOut),
     );
 
     _loadLocationHistory();
@@ -89,7 +96,8 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
   }
 
   Future<void> _saveLocationHistory(String newLoc) async {
-    if (newLoc.isEmpty || newLoc.contains('denied') || newLoc == 'Locating...') return;
+    if (newLoc.isEmpty || newLoc.contains('denied') || newLoc == 'Locating...')
+      return;
     final prefs = await SharedPreferences.getInstance();
     List<String> history = prefs.getStringList('location_history') ?? [];
     history.remove(newLoc);
@@ -158,15 +166,18 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
         return;
       }
     }
-    
+
     if (permission == LocationPermission.deniedForever) {
       if (mounted) setState(() => _currentLocation = 'Location denied');
       return;
-    } 
+    }
 
     try {
       Position position = await Geolocator.getCurrentPosition();
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks.first;
         final loc = '${place.locality}, ${place.administrativeArea}';
@@ -196,7 +207,7 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
 
   void _toggleFlash() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    
+
     try {
       if (_isFlashOn) {
         await _controller!.setFlashMode(FlashMode.off);
@@ -222,9 +233,12 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Please try again", style: GoogleFonts.inter(color: Colors.white)),
+            content: Text(
+              "Please try again",
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
             backgroundColor: Colors.redAccent,
-          )
+          ),
         );
       }
     } finally {
@@ -242,9 +256,8 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       debugPrint('Failed to take picture: $e');
     }
   }
-  
+
   void _processImage(String imagePath, {bool fromCamera = false}) async {
-    
     final aiService = AIService();
     final operation = aiService.analyzeFish(imagePath, _currentLocation);
     bool isCancelled = false;
@@ -252,7 +265,7 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black54,
+      barrierColor: Colors.black.withOpacity(0.3),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         return FadeTransition(
@@ -268,16 +281,12 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
                     width: 280,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.white.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppTheme.neonCyan.withOpacity(0.2), width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.neonCyan.withOpacity(0.1),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1.5,
+                      ),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -286,29 +295,52 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
                         const SizedBox(height: 24),
                         Text(
                           "Analyzing freshness...",
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const SizedBox(height: 32),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(100),
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(100),
-                              onPressed: () {
-                                isCancelled = true;
-                                operation.cancel();
-                                Navigator.pop(context);
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.close, color: Colors.white, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text("Cancel & Retake", style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                                ],
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: CupertinoButton(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                                borderRadius: BorderRadius.circular(100),
+                                onPressed: () {
+                                  isCancelled = true;
+                                  operation.cancel();
+                                  Navigator.pop(context);
+                                },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.close,
+                                      color: AppTheme.neonCyan,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Cancel & Retake",
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.neonCyan,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -326,7 +358,7 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
 
     final result = await operation.valueOrCancellation();
     if (!mounted || isCancelled) return;
-    
+
     // Save image to device gallery silently only if taken from camera AND not cancelled
     if (fromCamera) {
       try {
@@ -337,12 +369,15 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
         debugPrint('Failed to auto-save to gallery: $e');
       }
     }
-    
+
     Navigator.pop(context); // close dialog
     if (result != null) {
       result['imagePath'] = imagePath;
-      await DBService.saveScan(result, isBookmark: false); // Fix 4: save to history automatically
-      
+      await DBService.saveScan(
+        result,
+        isBookmark: false,
+      ); // Fix 4: save to history automatically
+
       setState(() => _isUIHidden = true);
       await showModalBottomSheet(
         context: context,
@@ -361,7 +396,9 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       useSafeArea: true,
       backgroundColor: AppTheme.cardBackground,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) => const SavedItemsSheet(),
     );
   }
@@ -380,7 +417,9 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
     if (_controller == null || !_controller!.value.isInitialized) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: AppTheme.neonCyan)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.neonCyan),
+        ),
       );
     }
 
@@ -397,358 +436,544 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
         child: Stack(
           fit: StackFit.expand,
           children: [
-          // Camera Feed
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: size.width,
-              height: size.width * _controller!.value.aspectRatio,
+            // Camera Feed
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: size.width,
+                height: size.width * _controller!.value.aspectRatio,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    GestureDetector(
+                      onScaleStart: (details) {
+                        _baseZoom = _currentZoom;
+                      },
+                      onScaleUpdate: (details) {
+                        _setZoom(_baseZoom * details.scale);
+                      },
+                      onDoubleTap: _switchCamera,
+                      onTapDown: (details) async {
+                        if (_controller == null ||
+                            !_controller!.value.isInitialized)
+                          return;
+                        final double x = details.localPosition.dx / size.width;
+                        final double y =
+                            details.localPosition.dy /
+                            (size.width * _controller!.value.aspectRatio);
+                        setState(() => _focusPoint = details.localPosition);
+                        _focusController.forward(from: 0.0);
+                        try {
+                          await _controller!.setFocusPoint(Offset(x, y));
+                          await _controller!.setExposurePoint(Offset(x, y));
+                          await _controller!.setFocusMode(FocusMode.auto);
+                          await _controller!.setExposureMode(ExposureMode.auto);
+                        } catch (e) {
+                          debugPrint('Focus error: $e');
+                        }
+                      },
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                        child:
+                            _controller != null &&
+                                _controller!.value.isInitialized
+                            ? CameraPreview(
+                                _controller!,
+                                key: ValueKey<int>(_cameraIndex),
+                              )
+                            : Container(
+                                key: const ValueKey('empty'),
+                                color: Colors.black,
+                              ),
+                      ),
+                    ),
+                    if (_focusPoint != null)
+                      Positioned(
+                        left: _focusPoint!.dx - 25,
+                        top: _focusPoint!.dy - 25,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 1.5, end: 1.0).animate(
+                            CurvedAnimation(
+                              parent: _focusController,
+                              curve: Curves.easeOut,
+                            ),
+                          ),
+                          child: FadeTransition(
+                            opacity: _focusController,
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.yellowAccent,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // UI Elements Overlay
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 300),
+              opacity: _isUIHidden ? 0.0 : 1.0,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  GestureDetector(
-                    onScaleStart: (details) {
-                      _baseZoom = _currentZoom;
-                    },
-                    onScaleUpdate: (details) {
-                      _setZoom(_baseZoom * details.scale);
-                    },
-                    onDoubleTap: _switchCamera,
-                    onTapDown: (details) async {
-                      if (_controller == null || !_controller!.value.isInitialized) return;
-                      final double x = details.localPosition.dx / size.width;
-                      final double y = details.localPosition.dy / (size.width * _controller!.value.aspectRatio);
-                      setState(() => _focusPoint = details.localPosition);
-                      _focusController.forward(from: 0.0);
-                      try {
-                        await _controller!.setFocusPoint(Offset(x, y));
-                        await _controller!.setExposurePoint(Offset(x, y));
-                        await _controller!.setFocusMode(FocusMode.auto);
-                        await _controller!.setExposureMode(ExposureMode.auto);
-                      } catch (e) {
-                        debugPrint('Focus error: $e');
-                      }
-                    },
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      transitionBuilder: (Widget child, Animation<double> animation) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
-                      child: _controller != null && _controller!.value.isInitialized
-                          ? CameraPreview(
-                              _controller!,
-                              key: ValueKey<int>(_cameraIndex),
-                            )
-                          : Container(key: const ValueKey('empty'), color: Colors.black),
-                    ),
-                  ),
-                  if (_focusPoint != null)
-                    Positioned(
-                      left: _focusPoint!.dx - 25,
-                      top: _focusPoint!.dy - 25,
-                      child: ScaleTransition(
-                        scale: Tween<double>(begin: 1.5, end: 1.0).animate(CurvedAnimation(parent: _focusController, curve: Curves.easeOut)),
-                        child: FadeTransition(
-                          opacity: _focusController,
-                          child: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.yellowAccent, width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          // UI Elements Overlay
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 300),
-            opacity: _isUIHidden ? 0.0 : 1.0,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Top Bar
-                Positioned(
-            top: 60,
-            left: 20,
-            right: 20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    if (!Platform.isIOS)
-                      GestureDetector(
-                        onTap: () => SystemNavigator.pop(),
-                        child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                      ),
-                    if (!Platform.isIOS)
-                      const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          backgroundColor: AppTheme.cardBackground,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                          builder: (context) => Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Select Location", style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 16),
-                                ListTile(
-                                  leading: const Icon(Icons.my_location, color: AppTheme.neonCyan),
-                                  title: Text("Current Location", style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
-                                  subtitle: Text("Detect using GPS", style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    setState(() => _currentLocation = "Locating...");
-                                    _initLocation();
-                                  },
-                                ),
-                                const Divider(color: Colors.white10),
-                                if (_locationHistory.isNotEmpty) ...[
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    child: Text("RECENT", style: GoogleFonts.inter(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold)),
-                                  ),
-                                  ..._locationHistory.map((loc) => ListTile(
-                                    leading: const Icon(Icons.history, color: Colors.white54),
-                                    title: Text(loc, style: GoogleFonts.inter(color: Colors.white)),
-                                    onTap: () {
-                                      setState(() => _currentLocation = loc);
-                                      _saveLocationHistory(loc);
-                                      _triggerLocationAnimation();
-                                      Navigator.pop(context);
-                                    },
-                                  )),
-                                  const Divider(color: Colors.white10),
-                                ],
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  child: Text("NEARBY CITIES", style: GoogleFonts.inter(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.bold)),
-                                ),
-                                ListTile(
-                                  leading: const Icon(Icons.location_city, color: Colors.white54),
-                                  title: Text("Kolkata, West Bengal", style: GoogleFonts.inter(color: Colors.white)),
-                                  onTap: () {
-                                    setState(() => _currentLocation = "Kolkata, West Bengal");
-                                    _saveLocationHistory("Kolkata, West Bengal");
-                                    _triggerLocationAnimation();
-                                    Navigator.pop(context);
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: Colors.white24, width: 1),
-                        ),
-                        child: Row(
+                  // Top Bar
+                  Positioned(
+                    top: 60,
+                    left: 20,
+                    right: 20,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            ScaleTransition(
-                              scale: _locAnimation,
-                              child: const Icon(Icons.location_on, color: Colors.white, size: 16),
+                            if (!Platform.isIOS)
+                              GestureDetector(
+                                onTap: () => SystemNavigator.pop(),
+                                child: const Icon(
+                                  Icons.arrow_back_ios,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            if (!Platform.isIOS) const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: AppTheme.cardBackground,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(24),
+                                    ),
+                                  ),
+                                  builder: (context) => Padding(
+                                    padding: const EdgeInsets.all(24.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Select Location",
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        ListTile(
+                                          leading: const Icon(
+                                            Icons.my_location,
+                                            color: AppTheme.neonCyan,
+                                          ),
+                                          title: Text(
+                                            "Current Location",
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            "Detect using GPS",
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white54,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            setState(
+                                              () => _currentLocation =
+                                                  "Locating...",
+                                            );
+                                            _initLocation();
+                                          },
+                                        ),
+                                        const Divider(color: Colors.white10),
+                                        if (_locationHistory.isNotEmpty) ...[
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            child: Text(
+                                              "RECENT",
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white38,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          ..._locationHistory.map(
+                                            (loc) => ListTile(
+                                              leading: const Icon(
+                                                Icons.history,
+                                                color: Colors.white54,
+                                              ),
+                                              title: Text(
+                                                loc,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                setState(
+                                                  () => _currentLocation = loc,
+                                                );
+                                                _saveLocationHistory(loc);
+                                                _triggerLocationAnimation();
+                                                Navigator.pop(context);
+                                              },
+                                            ),
+                                          ),
+                                          const Divider(color: Colors.white10),
+                                        ],
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            "NEARBY CITIES",
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white38,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        ListTile(
+                                          leading: const Icon(
+                                            Icons.location_city,
+                                            color: Colors.white54,
+                                          ),
+                                          title: Text(
+                                            "Kolkata, West Bengal",
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          onTap: () {
+                                            setState(
+                                              () => _currentLocation =
+                                                  "Kolkata, West Bengal",
+                                            );
+                                            _saveLocationHistory(
+                                              "Kolkata, West Bengal",
+                                            );
+                                            _triggerLocationAnimation();
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(
+                                    color: Colors.white24,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    ScaleTransition(
+                                      scale: _locAnimation,
+                                      child: const Icon(
+                                        Icons.location_on,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _currentLocation,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.keyboard_arrow_down,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(_currentLocation, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14)),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
                           ],
                         ),
-                      ),
+                        GestureDetector(
+                          onTap: _showRecentScans,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white24,
+                                width: 1,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.history,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: _showRecentScans,
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24, width: 1),
-                    ),
-                    child: const Icon(Icons.history, color: Colors.white, size: 20),
                   ),
-                ),
-              ],
-            ),
-          ),
 
-          // Center Reticle
-          Center(
-            child: SizedBox(
-              width: 250,
-              height: 250,
-              child: Stack(
-                children: [
-                  Positioned(top: 0, left: 0, child: _buildBracket(false, false)),
-                  Positioned(top: 0, right: 0, child: _buildBracket(false, true)),
-                  Positioned(bottom: 0, left: 0, child: _buildBracket(true, false)),
-                  Positioned(bottom: 0, right: 0, child: _buildBracket(true, true)),
-                  
+                  // Center Reticle
                   Center(
-                    child: FadeTransition(
-                      opacity: _pulseAnimation,
-                      child: Text(
-                        'Align head and\ngills here',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          shadows: [
-                            const Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))
-                          ]
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
+                    child: SizedBox(
+                      width: 250,
+                      height: 250,
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            child: _buildBracket(false, false),
+                          ),
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: _buildBracket(false, true),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            child: _buildBracket(true, false),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: _buildBracket(true, true),
+                          ),
 
-          // Bottom Action Area
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                // Zoom Pills (1x / 2x Macro mode)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [1.0, 2.0].map((z) {
-                    final isSelected = (_currentZoom - z).abs() < 0.2;
-                    return GestureDetector(
-                      onTap: () => _setZoom(z),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.neonCyan : Colors.black.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: isSelected ? AppTheme.neonCyan : Colors.white24, width: 1),
-                        ),
-                        child: Text(
-                          '${z.toInt()}x',
-                          style: GoogleFonts.inter(
-                            color: isSelected ? Colors.black : Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: _pickFromGallery,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white24, width: 1),
-                          ),
-                          child: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 24)
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _takePictureAndIdentify,
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppTheme.neonCyan.withOpacity(0.5), width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.4),
-                                blurRadius: 4,
-                                spreadRadius: 0,
-                              ),
-                              BoxShadow(
-                                color: AppTheme.neonCyan.withOpacity(0.3),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.neonCyan.withOpacity(0.5),
-                                    blurRadius: 12,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withOpacity(0.6),
+                          Center(
+                            child: FadeTransition(
+                              opacity: _pulseAnimation,
+                              child: Text(
+                                'Align head and\ngills here',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  shadows: [
+                                    const Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                      GestureDetector(
-                        onTap: _toggleFlash,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white24, width: 1),
-                          ),
-                          child: Icon(
-                            _isFlashOn ? Icons.flash_on : Icons.flash_off, 
-                            color: Colors.white, 
-                            size: 24
-                          )
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 30),
-                const Icon(Icons.keyboard_double_arrow_up, color: Colors.white70, size: 24),
-              ],
+
+                  // Bottom Action Area
+                  Positioned(
+                    bottom: 40,
+                    left: 0,
+                    right: 0,
+                    child: Column(
+                      children: [
+                        // Zoom Pills (1x / 2x Macro mode)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [1.0, 2.0].map((z) {
+                            final isSelected = (_currentZoom - z).abs() < 0.2;
+                            return GestureDetector(
+                              onTap: () => _setZoom(z),
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppTheme.neonCyan
+                                      : Colors.black.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppTheme.neonCyan
+                                        : Colors.white24,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${z.toInt()}x',
+                                  style: GoogleFonts.inter(
+                                    color: isSelected
+                                        ? Colors.black
+                                        : Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              GestureDetector(
+                                onTap: _pickFromGallery,
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white24,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.photo_library_outlined,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _takePictureAndIdentify,
+                                child: Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.neonCyan.withOpacity(0.5),
+                                      width: 3,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.white.withOpacity(0.4),
+                                        blurRadius: 4,
+                                        spreadRadius: 0,
+                                      ),
+                                      BoxShadow(
+                                        color: AppTheme.neonCyan.withOpacity(
+                                          0.3,
+                                        ),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.neonCyan
+                                                .withOpacity(0.5),
+                                            blurRadius: 12,
+                                            spreadRadius: 2,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _toggleFlash,
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white24,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _isFlashOn
+                                        ? Icons.flash_on
+                                        : Icons.flash_off,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        const Icon(
+                          Icons.keyboard_double_arrow_up,
+                          color: Colors.white70,
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // End of UI Elements Overlay
+                ],
+              ),
             ),
-          ),
-          // End of UI Elements Overlay
-        ],
-      ),
-      ),
           ],
         ),
       ),
@@ -761,17 +986,33 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       height: 40,
       decoration: BoxDecoration(
         border: Border(
-          top: isBottom ? BorderSide.none : const BorderSide(color: Colors.white, width: 3),
-          bottom: isBottom ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
-          left: isRight ? BorderSide.none : const BorderSide(color: Colors.white, width: 3),
-          right: isRight ? const BorderSide(color: Colors.white, width: 3) : BorderSide.none,
+          top: isBottom
+              ? BorderSide.none
+              : const BorderSide(color: Colors.white, width: 3),
+          bottom: isBottom
+              ? const BorderSide(color: Colors.white, width: 3)
+              : BorderSide.none,
+          left: isRight
+              ? BorderSide.none
+              : const BorderSide(color: Colors.white, width: 3),
+          right: isRight
+              ? const BorderSide(color: Colors.white, width: 3)
+              : BorderSide.none,
         ),
         borderRadius: BorderRadius.only(
-          topLeft: (!isBottom && !isRight) ? const Radius.circular(12) : Radius.zero,
-          topRight: (!isBottom && isRight) ? const Radius.circular(12) : Radius.zero,
-          bottomLeft: (isBottom && !isRight) ? const Radius.circular(12) : Radius.zero,
-          bottomRight: (isBottom && isRight) ? const Radius.circular(12) : Radius.zero,
-        )
+          topLeft: (!isBottom && !isRight)
+              ? const Radius.circular(12)
+              : Radius.zero,
+          topRight: (!isBottom && isRight)
+              ? const Radius.circular(12)
+              : Radius.zero,
+          bottomLeft: (isBottom && !isRight)
+              ? const Radius.circular(12)
+              : Radius.zero,
+          bottomRight: (isBottom && isRight)
+              ? const Radius.circular(12)
+              : Radius.zero,
+        ),
       ),
     );
   }
@@ -785,21 +1026,25 @@ class _HUDThumbnail extends StatefulWidget {
   State<_HUDThumbnail> createState() => _HUDThumbnailState();
 }
 
-class _HUDThumbnailState extends State<_HUDThumbnail> with SingleTickerProviderStateMixin {
+class _HUDThumbnailState extends State<_HUDThumbnail>
+    with SingleTickerProviderStateMixin {
   late AnimationController _anim;
-  
+
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat(reverse: true);
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
   }
-  
+
   @override
   void dispose() {
     _anim.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -815,8 +1060,8 @@ class _HUDThumbnailState extends State<_HUDThumbnail> with SingleTickerProviderS
                 color: AppTheme.neonCyan.withOpacity(0.1 + 0.3 * _anim.value),
                 blurRadius: 10 + 20 * _anim.value,
                 spreadRadius: 2 + 5 * _anim.value,
-              )
-            ]
+              ),
+            ],
           ),
           child: child,
         );
@@ -871,7 +1116,14 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -887,13 +1139,19 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
           const Divider(color: Colors.white10, height: 1),
           if (!_isLoading && _items.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     "Swipe left to delete",
-                    style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                    style: GoogleFonts.inter(
+                      color: Colors.white38,
+                      fontSize: 12,
+                    ),
                   ),
                   if (_isRecent)
                     GestureDetector(
@@ -920,12 +1178,14 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
             ),
           Expanded(
             child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: AppTheme.neonCyan))
-              : _items.isEmpty
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppTheme.neonCyan),
+                  )
+                : _items.isEmpty
                 ? Center(
                     child: Text(
                       _isRecent ? "No scans yet." : "No bookmarks yet.",
-                      style: GoogleFonts.inter(color: Colors.white54)
+                      style: GoogleFonts.inter(color: Colors.white54),
                     ),
                   )
                 : AnimatedOpacity(
@@ -933,7 +1193,9 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                     opacity: _isClearing ? 0.0 : 1.0,
                     child: AnimatedSlide(
                       duration: const Duration(milliseconds: 300),
-                      offset: _isClearing ? const Offset(-1.0, 0.0) : Offset.zero,
+                      offset: _isClearing
+                          ? const Offset(-1.0, 0.0)
+                          : Offset.zero,
                       child: ListView.builder(
                         itemCount: _items.length,
                         itemBuilder: (context, index) {
@@ -945,7 +1207,10 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
                               color: Colors.redAccent.withOpacity(0.2),
-                              child: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                              child: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                              ),
                             ),
                             onDismissed: (direction) async {
                               await DBService.deleteScan(item.id);
@@ -957,14 +1222,39 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                               color: Colors.transparent,
                               child: ListTile(
                                 leading: item.imagePath != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.file(File(item.imagePath!), width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image, color: Colors.white54)),
-                                    )
-                                  : const Icon(Icons.set_meal, color: Colors.white54),
-                                title: Text(item.englishName ?? 'Unknown', style: GoogleFonts.inter(color: Colors.white)),
-                                subtitle: Text('${item.localName ?? ''} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh', style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                                trailing: const Icon(Icons.chevron_left, color: Colors.white24),
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          File(item.imagePath!),
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              const Icon(
+                                                Icons.image,
+                                                color: Colors.white54,
+                                              ),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.set_meal,
+                                        color: Colors.white54,
+                                      ),
+                                title: Text(
+                                  item.englishName ?? 'Unknown',
+                                  style: GoogleFonts.inter(color: Colors.white),
+                                ),
+                                subtitle: Text(
+                                  '${item.localName ?? ''} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                trailing: const Icon(
+                                  Icons.chevron_left,
+                                  color: Colors.white24,
+                                ),
                                 onTap: () {
                                   Navigator.pop(context);
                                   final aiData = {
@@ -978,7 +1268,13 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                     'imagePath': item.imagePath,
                                     'isOffline': false,
                                   };
-                                  Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: aiData)));
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          ResultsScreen(aiData: aiData),
+                                    ),
+                                  );
                                 },
                               ),
                             ),
@@ -1006,9 +1302,13 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.neonCyan.withOpacity(0.15) : Colors.transparent,
+          color: isActive
+              ? AppTheme.neonCyan.withOpacity(0.15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: isActive ? AppTheme.neonCyan : Colors.transparent),
+          border: Border.all(
+            color: isActive ? AppTheme.neonCyan : Colors.transparent,
+          ),
         ),
         child: Text(
           title,
