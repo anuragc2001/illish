@@ -124,9 +124,15 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     if (videoId == null || videoId == 'mock') return;
     final Uri url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
     try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      bool launched = await launchUrl(url, mode: LaunchMode.externalNonBrowserApplication);
+      if (!launched) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
     } catch (e) {
       debugPrint("Could not launch $url: $e");
+      try {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } catch (_) {}
     }
   }
 
@@ -194,17 +200,22 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                      onPressed: () {
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        } else {
-                          Navigator.of(context, rootNavigator: true).pop();
-                        }
-                      },
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24, width: 1),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                        onPressed: () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          } else {
+                            Navigator.of(context, rootNavigator: true).pop();
+                          }
+                        },
+                      ),
                     ),
                     Column(
                       children: [
@@ -219,19 +230,22 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                         Text("AI Freshness Report", style: GoogleFonts.inter(fontSize: 12, color: Colors.white54)),
                       ],
                     ),
-                    IconButton(
-                      icon: Icon(
-                        _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                        color: _isBookmarked ? AppTheme.neonCyan : Colors.white,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24, width: 1),
                       ),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerRight,
-                      onPressed: () async {
-                        final imagePath = widget.aiData['imagePath'] as String?;
-                        if (_isBookmarked) {
-                          await DBService.removeBookmark(imagePath);
-                          if (mounted) {
+                      child: IconButton(
+                        icon: Icon(
+                          _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                          color: _isBookmarked ? AppTheme.neonCyan : Colors.white,
+                        ),
+                        onPressed: () async {
+                          final imagePath = widget.aiData['imagePath'] as String?;
+                          if (_isBookmarked) {
                             setState(() => _isBookmarked = false);
+                            ScaffoldMessenger.of(context).clearSnackBars();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Row(
@@ -243,13 +257,13 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                                 ),
                                 backgroundColor: AppTheme.neonCyan,
                                 behavior: SnackBarBehavior.floating,
+                                duration: const Duration(milliseconds: 1500),
                               )
                             );
-                          }
-                        } else {
-                          await DBService.saveScan(widget.aiData, isBookmark: true);
-                          if (mounted) {
+                            await DBService.removeBookmark(imagePath);
+                          } else {
                             setState(() => _isBookmarked = true);
+                            ScaffoldMessenger.of(context).clearSnackBars();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Row(
@@ -261,11 +275,13 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                                 ),
                                 backgroundColor: AppTheme.neonCyan,
                                 behavior: SnackBarBehavior.floating,
+                                duration: const Duration(milliseconds: 1500),
                               )
                             );
+                            await DBService.saveScan(widget.aiData, isBookmark: true);
                           }
-                        }
-                      },
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -297,7 +313,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
                                 scoreInt.toString(),
@@ -309,7 +325,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
+                                padding: const EdgeInsets.only(bottom: 8.0),
                                 child: Text(
                                   "%",
                                   style: GoogleFonts.inter(
@@ -327,9 +343,9 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                               ? "Offline Mode" 
                               : (scoreInt >= 85 ? "Very fresh" : (scoreInt >= 65 ? "Fresh" : (scoreInt >= 40 ? "Getting old" : "Stale"))),
                             style: GoogleFonts.inter(
-                              fontSize: 18,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 26,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -338,7 +354,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               
               Center(
                 child: Column(
@@ -356,7 +372,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(statusWord.toUpperCase(), style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1.5)),
+                        Text(statusWord.toUpperCase(), style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.5)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -529,17 +545,23 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
           children: [
             Container(
               height: 100,
+              width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                image: thumbUrl.isNotEmpty && thumbUrl != 'mock' ? DecorationImage(
-                  image: NetworkImage(thumbUrl),
-                  fit: BoxFit.cover,
-                ) : null,
               ),
-              child: thumbUrl == 'mock' || thumbUrl.isEmpty 
-                ? const Center(child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 32)) 
-                : null,
+              clipBehavior: Clip.hardEdge,
+              child: thumbUrl.isNotEmpty && thumbUrl != 'mock'
+                  ? Image.network(
+                      thumbUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Icon(Icons.video_collection, color: Colors.white24, size: 32),
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 32),
+                    ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -695,9 +717,15 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
     if (videoId == null) return;
     final Uri url = Uri.parse('https://www.youtube.com/watch?v=$videoId');
     try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+      bool launched = await launchUrl(url, mode: LaunchMode.externalNonBrowserApplication);
+      if (!launched) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
     } catch (e) {
       debugPrint("Could not launch $url: $e");
+      try {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } catch (_) {}
     }
   }
 
@@ -742,12 +770,18 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
               height: 60,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                image: vid['thumb']!.isNotEmpty ? DecorationImage(
-                  image: NetworkImage(vid['thumb']!),
-                  fit: BoxFit.cover,
-                ) : null,
                 color: Colors.white10,
               ),
+              clipBehavior: Clip.hardEdge,
+              child: vid['thumb']!.isNotEmpty
+                  ? Image.network(
+                      vid['thumb']!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Icon(Icons.video_collection, color: Colors.white24, size: 24),
+                      ),
+                    )
+                  : null,
             ),
             title: Text(vid['title']!, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: Text(vid['channel'] ?? 'YouTube', style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),

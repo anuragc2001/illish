@@ -29,6 +29,14 @@ class DBService {
 
     await isar.writeTxn(() async {
       await isar.scanRecords.put(record);
+      
+      if (!isBookmark) {
+        final recentScans = await isar.scanRecords.filter().isBookmarkEqualTo(false).sortByTimestampDesc().findAll();
+        if (recentScans.length > 10) {
+          final toDelete = recentScans.sublist(10).map((e) => e.id).toList();
+          await isar.scanRecords.deleteAll(toDelete);
+        }
+      }
     });
   }
 
@@ -59,6 +67,24 @@ class DBService {
       return cache.cachedJsonData;
     }
     return null;
+  }
+
+  static Future<void> deleteScan(int id) async {
+    await isar.writeTxn(() async {
+      await isar.scanRecords.delete(id);
+    });
+  }
+
+  static Future<void> clearRecentScans() async {
+    await isar.writeTxn(() async {
+      await isar.scanRecords.filter().isBookmarkEqualTo(false).deleteAll();
+    });
+  }
+
+  static Future<void> clearAll() async {
+    await isar.writeTxn(() async {
+      await isar.scanRecords.clear();
+    });
   }
 
   static Future<void> saveCachedRecipes(String query, String jsonData) async {

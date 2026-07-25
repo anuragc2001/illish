@@ -11,73 +11,95 @@ class RecognitionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: GestureDetector(
-        onVerticalDragUpdate: (details) {
-          if (details.primaryDelta! < -10) {
-            Navigator.pop(context);
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => ResultsScreen(aiData: aiData),
-            ));
-          }
-        },
-        child: Stack(
-          children: [
-            // Full screen frosted glass
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        if (details.primaryDelta! < -10) {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => ResultsScreen(aiData: aiData),
+          ));
+        }
+      },
+      child: Stack(
+        children: [
+            // Full screen frosted glass with fade
             Positioned.fill(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
                 child: Container(
-                  color: Colors.black.withOpacity(0.4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.95), // Deep black at top
+                        Colors.black.withOpacity(0.6),
+                        Colors.transparent, // Frosted but clear in the middle
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.6),
+                        Colors.black.withOpacity(0.95), // Deep black at bottom
+                      ],
+                      stops: const [0.0, 0.2, 0.45, 0.55, 0.8, 1.0],
+                    ),
+                  ),
                 ),
               ),
             ),
             
-            SafeArea(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 3),
+                Icon(Icons.blur_on, color: AppTheme.neonCyan.withOpacity(0.8), size: 28),
+                const SizedBox(height: 4),
+                Text(
+                  'SCAN COMPLETE',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.neonCyan,
+                    letterSpacing: 2,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                Text(
+                  aiData['englishName']?.toUpperCase() ?? 'UNKNOWN',
+                  style: GoogleFonts.inter(
+                    fontSize: 56,
+                    height: 1.0,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.neonCyan.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: AppTheme.neonCyan.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Spacer(flex: 3),
-                      Icon(Icons.blur_on, color: AppTheme.neonCyan.withOpacity(0.8), size: 28),
-                      const SizedBox(height: 4),
+                      const Icon(Icons.location_on, color: AppTheme.neonCyan, size: 14),
+                      const SizedBox(width: 6),
                       Text(
-                        'BAZAAR AI',
+                        aiData['localName'] ?? 'Unknown',
                         style: GoogleFonts.inter(
                           color: AppTheme.neonCyan,
-                          fontSize: 10,
-                          letterSpacing: 1.5,
                           fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      
-                      Text(
-                    aiData['englishName']?.toUpperCase() ?? 'UNKNOWN',
-                    style: GoogleFonts.inter(
-                      fontSize: 56,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      height: 1.0,
-                      letterSpacing: 2,
-                    ),
-                    textAlign: TextAlign.center,
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    aiData['localName'] ?? '', 
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.neonCyan,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const SizedBox(height: 32),
+                ),
+                
+                const SizedBox(height: 32),
                   
                   GestureDetector(
                     onTap: () {
@@ -150,25 +172,38 @@ class RecognitionSheet extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                    ],
+                  const SizedBox(height: 80),
+                ],
+              ),
+            Positioned(
+              top: (MediaQueryData.fromView(View.of(context)).padding.top > 0 
+                  ? MediaQueryData.fromView(View.of(context)).padding.top 
+                  : 47.0) + 16.0,
+              left: 24,
+              right: 24,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24, width: 1),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   ),
-                  Positioned(
-                    top: 8,
-                    left: 16,
-                    right: 16,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
-                          onPressed: () {},
-                        ),
-                      ],
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24, width: 1),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+                      onPressed: () {},
                     ),
                   ),
                 ],
@@ -176,7 +211,6 @@ class RecognitionSheet extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

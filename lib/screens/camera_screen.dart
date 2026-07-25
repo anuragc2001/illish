@@ -39,6 +39,7 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
   List<String> _locationHistory = [];
   bool _isFlashOn = false;
   bool _isPickerOpen = false;
+  bool _isUIHidden = false;
   final ImagePicker _picker = ImagePicker();
 
   double _currentZoom = 1.0;
@@ -232,6 +233,7 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
   }
 
   void _takePictureAndIdentify() async {
+    HapticFeedback.lightImpact();
     if (_controller == null || !_controller!.value.isInitialized) return;
     try {
       final XFile file = await _controller!.takePicture();
@@ -341,12 +343,14 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
       result['imagePath'] = imagePath;
       await DBService.saveScan(result, isBookmark: false); // Fix 4: save to history automatically
       
-      showModalBottomSheet(
+      setState(() => _isUIHidden = true);
+      await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (context) => RecognitionSheet(aiData: result),
       );
+      if (mounted) setState(() => _isUIHidden = false);
     }
   }
 
@@ -354,6 +358,7 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
     // We'll pass the context to a stateful widget to handle tabs
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
       backgroundColor: AppTheme.cardBackground,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -459,9 +464,15 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
               ),
             ),
           ),
-          
-          // Top Bar
-          Positioned(
+          // UI Elements Overlay
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: _isUIHidden ? 0.0 : 1.0,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Top Bar
+                Positioned(
             top: 60,
             left: 20,
             right: 20,
@@ -733,9 +744,13 @@ class _CameraScreenState extends State<CameraScreen> with TickerProviderStateMix
                 const Icon(Icons.keyboard_double_arrow_up, color: Colors.white70, size: 24),
               ],
             ),
-          )
+          ),
+          // End of UI Elements Overlay
         ],
       ),
+      ),
+          ],
+        ),
       ),
     );
   }
@@ -824,6 +839,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
   bool _isRecent = true; // true = Recent Scans, false = Bookmarks
   List<dynamic> _items = [];
   bool _isLoading = true;
+  bool _isClearing = false;
 
   @override
   void initState() {
@@ -869,6 +885,39 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
             ),
           ),
           const Divider(color: Colors.white10, height: 1),
+          if (!_isLoading && _items.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Swipe left to delete",
+                    style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                  ),
+                  if (_isRecent)
+                    GestureDetector(
+                      onTap: () async {
+                        setState(() => _isClearing = true);
+                        await Future.delayed(const Duration(milliseconds: 300));
+                        await DBService.clearRecentScans();
+                        await _loadData();
+                        if (mounted) {
+                          setState(() => _isClearing = false);
+                        }
+                      },
+                      child: Text(
+                        "Clear All",
+                        style: GoogleFonts.inter(
+                          color: Colors.redAccent.withOpacity(0.8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           Expanded(
             child: _isLoading
               ? const Center(child: CircularProgressIndicator(color: AppTheme.neonCyan))
@@ -879,40 +928,64 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                       style: GoogleFonts.inter(color: Colors.white54)
                     ),
                   )
-                : ListView.builder(
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      return Material(
-                        color: Colors.transparent,
-                        child: ListTile(
-                          leading: item.imagePath != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.file(File(item.imagePath!), width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image, color: Colors.white54)),
-                              )
-                            : const Icon(Icons.set_meal, color: Colors.white54),
-                          title: Text(item.englishName ?? 'Unknown', style: GoogleFonts.inter(color: Colors.white)),
-                          subtitle: Text('${item.localName ?? ''} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh', style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
-                          isThreeLine: false,
-                          onTap: () {
-                            Navigator.pop(context);
-                            final aiData = {
-                              'englishName': item.englishName,
-                              'localName': item.localName,
-                              'freshnessScore': item.freshnessScore,
-                              'freshnessStatus': item.freshnessStatus,
-                              'freshnessEvidence': item.freshnessEvidence,
-                              'bestCuts': item.bestCuts,
-                              'idealFor': item.idealFor,
-                              'imagePath': item.imagePath,
-                              'isOffline': false,
-                            };
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: aiData)));
-                          },
-                        ),
-                      );
-                    },
+                : AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: _isClearing ? 0.0 : 1.0,
+                    child: AnimatedSlide(
+                      duration: const Duration(milliseconds: 300),
+                      offset: _isClearing ? const Offset(-1.0, 0.0) : Offset.zero,
+                      child: ListView.builder(
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          return Dismissible(
+                            key: Key(item.id.toString()),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              color: Colors.redAccent.withOpacity(0.2),
+                              child: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            ),
+                            onDismissed: (direction) async {
+                              await DBService.deleteScan(item.id);
+                              setState(() {
+                                _items.removeAt(index);
+                              });
+                            },
+                            child: Material(
+                              color: Colors.transparent,
+                              child: ListTile(
+                                leading: item.imagePath != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(File(item.imagePath!), width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.image, color: Colors.white54)),
+                                    )
+                                  : const Icon(Icons.set_meal, color: Colors.white54),
+                                title: Text(item.englishName ?? 'Unknown', style: GoogleFonts.inter(color: Colors.white)),
+                                subtitle: Text('${item.localName ?? ''} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh', style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+                                trailing: const Icon(Icons.chevron_left, color: Colors.white24),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  final aiData = {
+                                    'englishName': item.englishName,
+                                    'localName': item.localName,
+                                    'freshnessScore': item.freshnessScore,
+                                    'freshnessStatus': item.freshnessStatus,
+                                    'freshnessEvidence': item.freshnessEvidence,
+                                    'bestCuts': item.bestCuts,
+                                    'idealFor': item.idealFor,
+                                    'imagePath': item.imagePath,
+                                    'isOffline': false,
+                                  };
+                                  Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: aiData)));
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
           ),
         ],

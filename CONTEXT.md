@@ -89,6 +89,22 @@ Because the app is used in bright, sunny, chaotic wet markets:
 - Use massive typography.
 - Use bottom-sheet swipes for one-handed operation.
 
+## Implemented Features (v1.0 Journey)
+During the initial build phase, several advanced features and UX refinements were added to strictly follow the Apple-style design philosophy:
+- **Bookmarks & History**: Introduced a robust Isar schema separating transient `ScanHistory` from saved `Bookmarks`.
+- **Apple-Style Scanning HUD**: Replaced basic loading spinners with a translucent frosted-glass HUD featuring a sweeping shimmer laser animation over the captured thumbnail.
+- **Hardware-Aware Camera UX (Macro Mode)**: Since mobile cameras cannot physically focus closer than 10-15cm, `1x` and `2x` digital zoom pills were added above the shutter button. This allows users to capture crisp macro-style shots of gills and eyes from a focal-safe distance. Pinch-to-zoom is also fully supported.
+- **Tap-to-Focus Reticle**: A yellow animated focus reticle appears on tap, pushing explicit auto-focus and auto-exposure coordinates to the camera lens.
+- **Dynamic Freshness Ring**: The Results screen features a custom painter that draws a blurred cyan neon glow underneath the foreground arc, with dynamic status grading (Excellent/Good/Fair/Poor).
+- **Inline Evidence Formatting**: Freshness logic results are parsed from AI and displayed as a clean, continuous line of dots (e.g., `Clear eyes • Bright gills`).
+- **Strictly Localized AI Prompting**: The Gemini prompt explicitly forces the output format `LocalName (EnglishName)` for both Cuts and Recipes based strictly on the user's localized GPS coordinates.
+- **Native Video Launching**: YouTube recipe links bypass the webview and open directly in the native YouTube app using `LaunchMode.externalNonBrowserApplication` or `externalApplication`.
+- **Frictionless Onboarding**: The Payment Screen (`Screen 3`) was temporarily hidden from the active user flow to reduce friction during early adoption, jumping straight to the Results Screen.
+- **Mock Mode & Offline Resilience**: `AppConfig.kMockMode` provides a fallback test mode for development. The `AIService` checks network connectivity using `connectivity_plus` to fall back to a basic localized scan offline.
+- **Reverse Geocoding**: Uses `geolocator` and `geocoding` to pull the precise `locality` and `administrativeArea` for the user's location, ensuring highly accurate regional translation.
+- **Intelligent Caching**: YouTube API results are cached in the `RecipeCache` Isar database for up to 7 days to conserve API quotas and improve speed.
+- **Gallery Import & Torch**: Features a flash toggle (Torch mode) for low-light wet markets, and `ImagePicker` integration so users can upload photos from their gallery instead of strictly scanning live.
+
 ## Design System & Vibe
 
 **Theme:** Pure dark mode, true black background `#000000`.
