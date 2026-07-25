@@ -25,7 +25,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _controller;
   int _cameraIndex = 0;
   late AnimationController _pulseController;
@@ -51,6 +51,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initCamera();
     _initLocation();
 
@@ -60,7 +61,7 @@ class _CameraScreenState extends State<CameraScreen>
     )..repeat(reverse: true);
 
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutCubic),
     );
 
     _focusController = AnimationController(
@@ -80,7 +81,7 @@ class _CameraScreenState extends State<CameraScreen>
       duration: const Duration(milliseconds: 300),
     );
     _locAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _locAnimController, curve: Curves.elasticOut),
+      CurvedAnimation(parent: _locAnimController, curve: Curves.easeOutExpo),
     );
 
     _loadLocationHistory();
@@ -404,7 +405,19 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _controller?.pausePreview();
+    } else if (state == AppLifecycleState.resumed) {
+      _controller?.resumePreview();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _pulseController.dispose();
     _focusController.dispose();

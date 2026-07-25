@@ -34,7 +34,7 @@ Currently, when the user has no internet connection, `AIService` falls back to s
 
 ---
 
-## 3. Sleek Apple-Style Cancelable AI Processing Overlay
+## 3. [COMPLETED] Sleek Apple-Style Cancelable AI Processing Overlay
 
 ### Concept
 Replace the basic `CircularProgressIndicator` full-screen dialog with an ultra-sleek, frosted-glass Apple HUD overlay during AI processing. If the user accidentally takes a photo or wants to retake it immediately, they can tap a subtle, intuitive "Retake" / "Cancel" button to abort the network request and return instantly to the camera viewfinder.
@@ -48,5 +48,44 @@ Replace the basic `CircularProgressIndicator` full-screen dialog with an ultra-s
 - **Cancelable Async Request**: Use a `CancelableOperation` from `package:async/async` (or an `http.Client` with `CancelToken` / `AbortController`) inside `AIService`.
 - **State Handling**: 
   1. Tapping `"Cancel & Retake"` immediately cancels the active Gemini API call.
-  2. Dismisses the HUD overlay using a smooth fade-out transition.
   3. Resets camera state so the user can immediately re-align and take a new photo without delay.
+
+---
+
+## 4. Handle Background Camera Navigation Streams
+
+### Concept
+When pushing new screens (like the `ResultsScreen`), the camera feed currently continues streaming frames beneath the new route. While the OS backgrounding is handled, navigating within the app leaves the camera running.
+
+### Technical Approach
+- Safely pause `CameraController` image streams upon route push, and resume them on pop, without causing black screens or initialization race conditions during transition animations.
+
+---
+
+## 5. Graceful Network & Offline Failures
+
+### Concept
+If the Gemini API fails entirely, the app currently falls back to a simulated scan instead of explicitly alerting the user that the network request failed.
+
+### Technical Approach
+- Update `ResultsScreen` UI to cleanly handle and display network failure states, giving the user a clear "Retry Connection" or "Offline Mode" option instead of spoofing a result.
+
+---
+
+## 6. Architecture & State Management Refactoring
+
+### Concept
+`_CameraScreenState` currently manages complex camera initializations, animations, file picking, and API integration in one monolithic file.
+
+### Technical Approach
+- Abstract the Camera lifecycle and state into a dedicated Service or use a state management solution (like Riverpod or Bloc) to decouple UI from hardware/API logic.
+
+---
+
+## 7. Local Database Pagination (Isar)
+
+### Concept
+Fetching all bookmarks at once via `db_service.dart` works fine for a pilot, but could drop frames if hundreds of items are saved over time.
+
+### Technical Approach
+- Implement lazy loading or pagination queries in Isar for the `SavedItemsSheet` to ensure it scales flawlessly regardless of user history size.

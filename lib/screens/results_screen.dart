@@ -20,6 +20,7 @@ class ResultsScreen extends StatefulWidget {
 class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _progressAnimation;
   List<Map<String, String>> _videos = [];
   bool _isLoadingVideos = true;
   bool _isBookmarked = false;
@@ -28,8 +29,9 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 2500));
     _scaleAnimation = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _progressAnimation = CurvedAnimation(parent: _animController, curve: Curves.elasticOut);
 
     _animController.forward();
     _fetchVideos();
@@ -141,6 +143,12 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     Navigator.push(context, MaterialPageRoute(
       builder: (context) => AllRecipesScreen(query: '$species fish recipe'),
     ));
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   @override
@@ -299,12 +307,17 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      SizedBox(
-                        width: 250,
-                        height: 250,
-                        child: CustomPaint(
-                          painter: FreshnessRingPainter(score, AppTheme.neonCyan),
-                        ),
+                      AnimatedBuilder(
+                        animation: _animController,
+                        builder: (context, child) {
+                          return SizedBox(
+                            width: 250,
+                            height: 250,
+                            child: CustomPaint(
+                              painter: FreshnessRingPainter((score * _progressAnimation.value).clamp(0.0, 1.0), AppTheme.neonCyan),
+                            ),
+                          );
+                        },
                       ),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -315,14 +328,19 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                scoreInt.toString(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 80,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  height: 1.0,
-                                ),
+                              AnimatedBuilder(
+                                animation: _animController,
+                                builder: (context, child) {
+                                  return Text(
+                                    (scoreInt * _progressAnimation.value).toInt().clamp(0, 100).toString(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 80,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
+                                  );
+                                },
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 8.0),
@@ -372,7 +390,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(statusWord.toUpperCase(), style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.5)),
+                        Text(statusWord.toUpperCase(), style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.5)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -460,23 +478,27 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
               
               SizedBox(
                 height: 180,
-                child: _isLoadingVideos 
-                  ? const Center(child: CircularProgressIndicator(color: AppTheme.neonCyan))
-                  : _videoError != null
-                      ? Center(child: Text(_videoError!, style: const TextStyle(color: Colors.white54)))
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _videos.length,
-                          itemBuilder: (context, index) {
-                            final vid = _videos[index];
-                            return _buildDynamicVideoCard(
-                              vid['title'] ?? 'Recipe', 
-                              vid['channel'] ?? '30 min',
-                              vid['thumb'] ?? '',
-                              vid['videoId'],
-                            );
-                          },
-                        ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  child: _isLoadingVideos 
+                    ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator(color: AppTheme.neonCyan))
+                    : _videoError != null
+                        ? Center(key: const ValueKey('error'), child: Text(_videoError!, style: TextStyle(color: Colors.white54)))
+                        : ListView.builder(
+                            key: const ValueKey('list'),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _videos.length,
+                            itemBuilder: (context, index) {
+                              final vid = _videos[index];
+                              return _buildDynamicVideoCard(
+                                vid['title'] ?? 'Recipe', 
+                                vid['channel'] ?? '30 min',
+                                vid['thumb'] ?? '',
+                                vid['videoId'],
+                              );
+                            },
+                          ),
+                ),
               ),
               const SizedBox(height: 40),
             ],

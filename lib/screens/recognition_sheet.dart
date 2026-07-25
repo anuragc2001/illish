@@ -15,8 +15,11 @@ class RecognitionSheet extends StatelessWidget {
       onVerticalDragUpdate: (details) {
         if (details.primaryDelta! < -10) {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => ResultsScreen(aiData: aiData),
+          Navigator.push(context, PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => ResultsScreen(aiData: aiData),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
           ));
         }
       },
@@ -104,8 +107,11 @@ class RecognitionSheet extends StatelessWidget {
                   GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => ResultsScreen(aiData: aiData),
+                      Navigator.push(context, PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => ResultsScreen(aiData: aiData),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
                       ));
                     },
                     child: Container(
