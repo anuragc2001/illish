@@ -436,7 +436,7 @@ class _CameraScreenState extends State<CameraScreen>
       );
     }
 
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1173,7 +1173,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
     // We use a fixed height container rather than DraggableScrollableSheet
     // to fix the swipe-down dismiss animation stutter (Fix 12).
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.sizeOf(context).height * 0.7,
       decoration: const BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

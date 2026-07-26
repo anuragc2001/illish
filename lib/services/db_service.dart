@@ -31,9 +31,14 @@ class DBService {
       await isar.scanRecords.put(record);
       
       if (!isBookmark) {
-        final recentScans = await isar.scanRecords.filter().isBookmarkEqualTo(false).sortByTimestampDesc().findAll();
-        if (recentScans.length > 10) {
-          final toDelete = recentScans.sublist(10).map((e) => e.id).toList();
+        final overflowScans = await isar.scanRecords
+            .filter()
+            .isBookmarkEqualTo(false)
+            .sortByTimestampDesc()
+            .offset(10)
+            .findAll();
+        if (overflowScans.isNotEmpty) {
+          final toDelete = overflowScans.map((e) => e.id).toList();
           await isar.scanRecords.deleteAll(toDelete);
         }
       }

@@ -88,6 +88,7 @@ class AIService {
         'idealFor': [],
         'isOffline': false,
         'error': true,
+        'errorType': 'api_error',
       };
     }
   }

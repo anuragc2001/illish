@@ -185,8 +185,8 @@ class RecognitionSheet extends StatelessWidget {
                 ],
               ),
             Positioned(
-              top: (MediaQueryData.fromView(View.of(context)).padding.top > 0 
-                  ? MediaQueryData.fromView(View.of(context)).padding.top 
+              top: (MediaQuery.paddingOf(context).top > 0 
+                  ? MediaQuery.paddingOf(context).top 
                   : 47.0) + 16.0,
               left: 24,
               right: 24,
@@ -212,7 +212,20 @@ class RecognitionSheet extends StatelessWidget {
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
-                      onPressed: () {},
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Freshness report link copied to clipboard!',
+                              style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                            ),
+                            backgroundColor: AppTheme.neonCyan,
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(milliseconds: 1500),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],

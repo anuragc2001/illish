@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:workmanager/workmanager.dart';
@@ -20,7 +21,11 @@ List<CameraDescription> cameras = [];
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("Warning: Could not load .env file: $e");
+  }
   await DBService.initialize();
   
   try {
@@ -31,7 +36,7 @@ void main() async {
   
   Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: true,
+    isInDebugMode: kDebugMode,
   );
 
   runApp(const IllishApp());
