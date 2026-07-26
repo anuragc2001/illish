@@ -32,7 +32,7 @@ class AIService {
   ) async {
     if (AppConfig.kMockMode) {
       await Future.delayed(const Duration(seconds: 1)); // simulate latency
-      
+
       _mockCycle++;
       double testScore;
       if (_mockCycle % 3 == 1) {
@@ -50,9 +50,30 @@ class AIService {
         'freshnessStatus': 'Mocked Status',
         'freshnessEvidence':
             'Clear eyes • bright red gills • Caught within 24 hours',
-        'bestCuts': ['Peti', 'Gada'],
-        'idealFor': ['Authentic Bengali Shorshe Rui'],
-        'vendorAlert': 'Vendor alert: weigh before adding ice',
+        'bestCuts': [
+          'Peti (Belly)',
+          'Gada (Back)',
+          'Mura (Head)',
+          'Laja (Tail)',
+          'Peti-Gada (Belly and Back)',
+        ],
+        'idealFor': [
+          'Authentic Bengali Shorshe Rui',
+          'Rui Macher Kalia',
+          'Macher Jhol (Light Stew)',
+          'Rui Posto',
+          'Doi Mach',
+          'Macher Matha Diye Moong Dal',
+          'Rui Macher Vaja',
+        ],
+        'trickeryTips': [
+          'Vendor trickery: weigh before ice is added',
+          'Press the flesh - it should bounce back immediately if fresh.',
+          'Check the gills - Ensure they are bright red, not brown or grey.',
+          'Smell test - It should smell like the ocean, not ammonia.',
+          'Look at the eyes - Avoid fish with cloudy, sunken eyes.',
+          'Beware of artificial coloring on the skin or gills.',
+        ],
         'isOffline': true,
       };
     }

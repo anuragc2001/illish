@@ -27,6 +27,7 @@ class _ResultsScreenState extends State<ResultsScreen>
   List<Map<String, String>> _videos = [];
   bool _isLoadingVideos = true;
   bool _isBookmarked = false;
+  bool _showAllTrickeryTips = false;
   String? _videoError;
 
   @override
@@ -223,6 +224,9 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
     final List<String> idealFor = List<String>.from(
       widget.aiData['idealFor'] ?? [],
+    );
+    final List<String> trickeryTips = List<String>.from(
+      widget.aiData['trickeryTips'] ?? [],
     );
     final bool isError = widget.aiData['error'] == true;
 
@@ -503,9 +507,10 @@ class _ResultsScreenState extends State<ResultsScreen>
                           alignment: Alignment.center,
                           children: [
                             AnimatedBuilder(
-                              animation: Listenable.merge(
-                                [_animController, _shimmerController],
-                              ),
+                              animation: Listenable.merge([
+                                _animController,
+                                _shimmerController,
+                              ]),
                               builder: (context, child) {
                                 return SizedBox(
                                   width: 250,
@@ -714,6 +719,11 @@ class _ResultsScreenState extends State<ResultsScreen>
                     ),
                     const SizedBox(height: 24),
 
+                    if (trickeryTips.isNotEmpty) ...[
+                      _buildVendorTrickeryCard(trickeryTips),
+                      const SizedBox(height: 24),
+                    ],
+
                     IntrinsicHeight(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -887,6 +897,128 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
+  Widget _buildVendorTrickeryCard(List<String> trickeryTips) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header / Default View
+          InkWell(
+            borderRadius: _showAllTrickeryTips 
+                ? const BorderRadius.vertical(top: Radius.circular(16))
+                : BorderRadius.circular(16),
+            onTap: () {
+              if (trickeryTips.length > 1) {
+                setState(() => _showAllTrickeryTips = !_showAllTrickeryTips);
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppTheme.amber,
+                    size: 25,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _showAllTrickeryTips ? "Vendor Trickery Alerts" : trickeryTips.first,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (trickeryTips.length > 1) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      _showAllTrickeryTips ? "Hide tips" : "View tips",
+                      style: GoogleFonts.inter(
+                        color: AppTheme.neonCyan,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _showAllTrickeryTips
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_right,
+                      color: AppTheme.neonCyan,
+                      size: 16,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // Expanded view
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: _showAllTrickeryTips && trickeryTips.length > 1
+                ? Column(
+                    children: [
+                      const Divider(color: Colors.white10, height: 1),
+                      ...trickeryTips
+                          .map(
+                            (tip) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Icon(
+                                      Icons.circle,
+                                      color: AppTheme.amber,
+                                      size: 6,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      tip,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      const SizedBox(height: 8),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDynamicVideoCard(
     String title,
     String subtitle,
@@ -1022,9 +1154,9 @@ class FreshnessRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant FreshnessRingPainter oldDelegate) {
-    return oldDelegate.percentage != percentage || 
-           oldDelegate.color != color || 
-           oldDelegate.shimmerValue != shimmerValue;
+    return oldDelegate.percentage != percentage ||
+        oldDelegate.color != color ||
+        oldDelegate.shimmerValue != shimmerValue;
   }
 }
 

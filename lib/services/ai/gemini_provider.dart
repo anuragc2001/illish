@@ -35,9 +35,10 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
   "localName": "Regional name based on $location (include native script if applicable)",
   "freshnessScore": 0.95, // float between 0.0 and 1.0 based on eye cloudiness, gill color, skin texture
   "freshnessStatus": "Green / 95% Fresh", // e.g., Green/Yellow/Red
-  "freshnessEvidence": "Clear eyes • bright red gills", // bullet points separated by ' • '
-  "bestCuts": ["List of 3 authentic local fishmonger cuts commonly used in $location markets (e.g. if in West Bengal, use real Bengali terms like 'Peti', 'Gada', etc. instead of generic 'steaks'). Format strictly as: LocalName (English translation)"],
-  "idealFor": ["List of authentic local recipes based on $location. Format strictly as: LocalName (English translation)"]
+  "freshnessEvidence": "Clear eyes • bright red gills", // bullet points separated by ' • '. Keep each point extremely short (under 5 words).
+  "bestCuts": ["List of 3 authentic local fishmonger cuts commonly used in $location markets (e.g. if in West Bengal, use real Bengali terms like 'Peti', 'Gada', etc. instead of generic 'steaks'). Format strictly as: LocalName (English translation). Keep under 8 words per item."],
+  "idealFor": ["List of authentic local recipes based on $location. Format strictly as: LocalName (English translation). Keep under 8 words per item."],
+  "trickeryTips": ["List of 1 to 6 vendor trickery alerts or general buying tips.Keep ALL tips extremely concise and short (under 10 words each). Keep the very first tip short with 'Vendor trickery:' and punchy so it acts as a catchy preview and so one so forth. Example: 'Vendor trickery: weigh before ice is added', 'Press the flesh - it should bounce back immediately', etc."]
 }
 ''');
 

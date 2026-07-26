@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import 'results_screen.dart';
+import 'payment_sheet.dart';
 
 class RecognitionSheet extends StatelessWidget {
   final Map<String, dynamic> aiData;
@@ -16,7 +17,7 @@ class RecognitionSheet extends StatelessWidget {
         if (details.primaryVelocity != null && details.primaryVelocity! < -300) {
           Navigator.pop(context);
           Navigator.push(context, PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => ResultsScreen(aiData: aiData),
+            pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: aiData),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               const begin = Offset(0.0, 1.0);
               const end = Offset.zero;
@@ -115,7 +116,7 @@ class RecognitionSheet extends StatelessWidget {
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(context, PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => ResultsScreen(aiData: aiData),
+                        pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: aiData),
                         transitionsBuilder: (context, animation, secondaryAnimation, child) {
                           const begin = Offset(0.0, 1.0);
                           const end = Offset.zero;
