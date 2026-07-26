@@ -228,6 +228,17 @@ class _ResultsScreenState extends State<ResultsScreen>
     final List<String> trickeryTips = List<String>.from(
       widget.aiData['trickeryTips'] ?? [],
     );
+    final String suggestedPrice =
+        widget.aiData['suggestedPrice']?.toString() ?? 'N/A';
+    final String marketAvgPrice =
+        widget.aiData['marketAvgPrice']?.toString() ?? 'N/A';
+    final String priceExplanation =
+        widget.aiData['priceExplanation']?.toString() ??
+        'Price explanation not available.';
+    final String marketAvgExplanation =
+        widget.aiData['marketAvgExplanation']?.toString() ??
+        'Market average calculation not available.';
+
     final bool isError = widget.aiData['error'] == true;
 
     // Status word classification
@@ -746,7 +757,18 @@ class _ResultsScreenState extends State<ResultsScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
+
+                    if (suggestedPrice != 'N/A') ...[
+                      _buildPriceCard(
+                        context,
+                        suggestedPrice,
+                        marketAvgPrice,
+                        priceExplanation,
+                        marketAvgExplanation,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -897,6 +919,123 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
+  Widget _buildPriceCard(
+    BuildContext context,
+    String suggestedPrice,
+    String marketAvg,
+    String explanation,
+    String marketAvgExplanation,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Suggested Price Range",
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Opacity(
+                opacity: 0.0,
+                child: Text(
+                  " /kg",
+                  style: GoogleFonts.inter(fontSize: 14),
+                ),
+              ),
+              Text(
+                "₹$suggestedPrice",
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1.0,
+                ),
+              ),
+              Text(
+                " /kg",
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Market avg: ₹$marketAvg/kg",
+                style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: AppTheme.cardBackground,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: Text(
+                        "Market Average",
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      content: Text(
+                        marketAvgExplanation,
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            "OK",
+                            style: GoogleFonts.inter(color: AppTheme.neonCyan),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Icon(
+                  Icons.info_outline,
+                  color: Colors.white38,
+                  size: 14,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVendorTrickeryCard(List<String> trickeryTips) {
     return Container(
       decoration: BoxDecoration(
@@ -910,7 +1049,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         children: [
           // Header / Default View
           InkWell(
-            borderRadius: _showAllTrickeryTips 
+            borderRadius: _showAllTrickeryTips
                 ? const BorderRadius.vertical(top: Radius.circular(16))
                 : BorderRadius.circular(16),
             onTap: () {
@@ -933,7 +1072,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _showAllTrickeryTips ? "Vendor Trickery Alerts" : trickeryTips.first,
+                          _showAllTrickeryTips
+                              ? "Vendor Trickery Alerts"
+                              : trickeryTips.first,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(

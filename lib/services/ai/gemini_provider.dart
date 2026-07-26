@@ -28,8 +28,29 @@ class GeminiProvider implements AIProvider {
 
     final imageBytes = await File(imagePath).readAsBytes();
 
+    final now = DateTime.now();
+    
+    final dayStr = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][now.weekday - 1];
+    
+    String timeOfDay;
+    if (now.hour >= 4 && now.hour < 11) timeOfDay = "Morning";
+    else if (now.hour >= 11 && now.hour < 16) timeOfDay = "Afternoon";
+    else if (now.hour >= 16 && now.hour < 21) timeOfDay = "Evening";
+    else timeOfDay = "Night";
+    
+    String season;
+    if (now.month == 12 || now.month <= 2) season = "Winter";
+    else if (now.month >= 3 && now.month <= 5) season = "Summer";
+    else if (now.month >= 6 && now.month <= 9) season = "Monsoon";
+    else season = "Autumn";
+
+    final timeContext = "Current Day: $dayStr\nTime of Day: $timeOfDay\nCurrent Season: $season";
+
     final prompt = TextPart('''
-Analyze this image of a fish found in $location. Return a raw JSON object (no markdown, no backticks) with exactly this structure:
+Analyze this image of a fish found in $location. 
+$timeContext
+
+Return a raw JSON object (no markdown, no backticks) with exactly this structure:
 {
   "englishName": "Common english name",
   "localName": "Regional name based on $location (include native script if applicable)",
@@ -38,7 +59,11 @@ Analyze this image of a fish found in $location. Return a raw JSON object (no ma
   "freshnessEvidence": "Clear eyes • bright red gills", // bullet points separated by ' • '. Keep each point extremely short (under 5 words).
   "bestCuts": ["List of 3 authentic local fishmonger cuts commonly used in $location markets (e.g. if in West Bengal, use real Bengali terms like 'Peti', 'Gada', etc. instead of generic 'steaks'). Format strictly as: LocalName (English translation). Keep under 8 words per item."],
   "idealFor": ["List of authentic local recipes based on $location. Format strictly as: LocalName (English translation). Keep under 8 words per item."],
-  "trickeryTips": ["List of 1 to 6 vendor trickery alerts or general buying tips.Keep ALL tips extremely concise and short (under 10 words each). Keep the very first tip short with 'Vendor trickery:' and punchy so it acts as a catchy preview and so one so forth. Example: 'Vendor trickery: weigh before ice is added', 'Press the flesh - it should bounce back immediately', etc."]
+  "trickeryTips": ["List of 1 to 6 vendor trickery alerts or general buying tips. Keep ALL tips extremely concise and short (under 10 words each). Start the first tip with 'Vendor trickery:'. Example: 'Vendor trickery: weigh before ice is added', 'Press the flesh - should bounce back', etc."],
+  "suggestedPrice": "300 - 320", // string, numerical range representing fair price in local currency. CALCULATE THIS strictly based on the fish type, freshness evidence from the image, location ($location), and the current time/day/season.
+  "marketAvgPrice": "340", // string, numerical value representing market average for this fish type and location until a DB is available.
+  "priceExplanation": "Calculated based on [Freshness %] freshness, [Time/Day/Season] demand, and current $location market rates.",
+  "marketAvgExplanation": "Market average is fetched from historical market data and local crowdsourcing."
 }
 ''');
 

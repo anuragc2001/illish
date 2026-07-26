@@ -74,6 +74,10 @@ class AIService {
           'Look at the eyes - Avoid fish with cloudy, sunken eyes.',
           'Beware of artificial coloring on the skin or gills.',
         ],
+        'suggestedPrice': '300 - 320',
+        'marketAvgPrice': '340',
+        'priceExplanation': 'Calculated based on 90% freshness, early morning catch premium, and current wholesale rates in Kolkata.',
+        'marketAvgExplanation': 'The market average price is compiled from regional crowdsourced reports and wholesale benchmark data from the past week.',
         'isOffline': true,
       };
     }
