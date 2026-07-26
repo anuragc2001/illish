@@ -35,14 +35,15 @@ Based on a deep review of [CONTEXT.md](file:///Users/anuragchakraborty/Code/ios%
 
 ---
 
-#### 3. Price Intelligence ("Is this price fair?")
+#### 3. [COMPLETED] Price Intelligence ("Is this price fair?")
+**Status:** Completed and integrated into the AI Prompt and ResultsScreen UI.
 **Why it matters:** Your CONTEXT.md says the mission is to help users *"avoid being cheated on price"*. But the app currently has zero pricing data. This is the single biggest unbuilt feature from your original PRD.
 
-**What to build:**
-- After identifying a fish species + location, query Gemini for: *"What is the typical retail price range for [fish] in [city] in [month]?"*
+**What was built:**
+- After identifying a fish species + location, Gemini queries: *"What is the typical retail price range for [fish] in [city] in [month]?"*
 - Display a price range bar: ₹300-₹450/kg with the market average highlighted
 - Seasonal pricing context: *"Hilsa prices peak during monsoon (July-Aug)"*
-- Let users **report** the price they paid (crowdsource data over time)
+- (Pending) Let users **report** the price they paid (crowdsource data over time)
 
 ---
 

@@ -317,6 +317,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                     const SizedBox(height: 32),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
+                      behavior: HitTestBehavior.opaque,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -957,10 +958,7 @@ class _ResultsScreenState extends State<ResultsScreen>
             children: [
               Opacity(
                 opacity: 0.0,
-                child: Text(
-                  " /kg",
-                  style: GoogleFonts.inter(fontSize: 14),
-                ),
+                child: Text(" /kg", style: GoogleFonts.inter(fontSize: 14)),
               ),
               Text(
                 "₹$suggestedPrice",
@@ -1168,6 +1166,7 @@ class _ResultsScreenState extends State<ResultsScreen>
   ) {
     return GestureDetector(
       onTap: () => _launchVideo(videoId),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         width: 150,
         margin: const EdgeInsets.only(right: 16),
@@ -1253,19 +1252,11 @@ class FreshnessRingPainter extends CustomPainter {
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
 
-    final glowPaint = Paint()
-      ..color = color.withOpacity(shimmerValue)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12.0);
-
     final fgPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 1.5);
+      ..strokeCap = StrokeCap.round;
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - 6;
@@ -1273,15 +1264,6 @@ class FreshnessRingPainter extends CustomPainter {
     canvas.drawCircle(center, radius, bgPaint);
 
     final sweepAngle = 2 * pi * percentage;
-
-    // Draw glow
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -pi / 2,
-      sweepAngle,
-      false,
-      glowPaint,
-    );
 
     // Draw foreground arc
     canvas.drawArc(
