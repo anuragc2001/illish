@@ -20,24 +20,21 @@ List<CameraDescription> cameras = [];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint("Warning: Could not load .env file: $e");
   }
   await DBService.initialize();
-  
+
   try {
     cameras = await availableCameras();
   } on CameraException catch (e) {
     debugPrint('CameraError: ${e.code}, ${e.description}');
   }
-  
-  Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: kDebugMode,
-  );
+
+  Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
 
   runApp(const IllishApp());
 }
@@ -51,7 +48,7 @@ class IllishApp extends StatelessWidget {
       title: 'illish',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: cameras.isEmpty 
+      home: cameras.isEmpty
           ? const Scaffold(body: Center(child: Text("No cameras found")))
           : const CameraScreen(),
     );
