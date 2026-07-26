@@ -1,0 +1,15 @@
+flavors:
+  prod:
+    app:
+      name: "Illish"
+    android:
+      applicationId: "com.anuragchak.illish"
+    ios:
+      bundleId: "com.anuragchak.illish"
+  exp:
+    app:
+      name: "Illish Dev"
+    android:
+      applicationId: "com.anuragchak.illish.dev"
+    ios:
+      bundleId: "com.anuragchak.illish.dev"
