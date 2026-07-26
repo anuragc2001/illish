@@ -53,8 +53,11 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initCamera();
-    _initLocation();
+    _initCamera().then((_) {
+      if (mounted) {
+        _initLocation();
+      }
+    });
 
     _pulseController = AnimationController(
       vsync: this,
