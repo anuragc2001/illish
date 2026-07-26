@@ -37,3 +37,7 @@ These rules were learned during the initial phase of the Illish app and must be 
 ## 9. Flutter Environment Path
 - **Context**: The agent runs in a non-interactive shell that skips loading `~/.zprofile` by default.
 - **Rule**: Whenever you need to execute `flutter` or `dart` commands in the terminal, you MUST prefix it with `source ~/.zprofile && ` (e.g., `source ~/.zprofile && flutter pub get`).
+
+## 10. ADB Command Execution
+- **Context**: The `adb` command might not be available in the default system PATH for the agent.
+- **Rule**: To run `adb`, you must create an alias with the absolute file path and chain it with `&&`. For example: `alias adb='~/Library/Android/sdk/platform-tools/adb' && adb <command>`.

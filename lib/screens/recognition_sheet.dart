@@ -12,13 +12,17 @@ class RecognitionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onVerticalDragUpdate: (details) {
-        if (details.primaryDelta! < -10) {
+      onVerticalDragEnd: (details) {
+        if (details.primaryVelocity != null && details.primaryVelocity! < -300) {
           Navigator.pop(context);
           Navigator.push(context, PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => ResultsScreen(aiData: aiData),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.easeOutCubic;
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(position: animation.drive(tween), child: child);
             },
           ));
         }
@@ -113,7 +117,11 @@ class RecognitionSheet extends StatelessWidget {
                       Navigator.push(context, PageRouteBuilder(
                         pageBuilder: (context, animation, secondaryAnimation) => ResultsScreen(aiData: aiData),
                         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return FadeTransition(opacity: animation, child: child);
+                          const begin = Offset(0.0, 1.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeOutCubic;
+                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                          return SlideTransition(position: animation.drive(tween), child: child);
                         },
                       ));
                     },
