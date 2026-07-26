@@ -4,12 +4,16 @@ flavors:
       name: "Illish"
     android:
       applicationId: "com.anuragchak.illish"
+      icon: "assets/icon/app_icon.png"
     ios:
       bundleId: "com.anuragchak.illish"
+      icon: "assets/icon/app_icon.png"
   exp:
     app:
       name: "Illish Dev"
     android:
       applicationId: "com.anuragchak.illish.dev"
+      icon: "assets/icon/app_icon.png"
     ios:
       bundleId: "com.anuragchak.illish.dev"
+      icon: "assets/icon/app_icon.png"
