@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,6 +11,7 @@ import 'ai/gemini_provider.dart';
 
 class AIService {
   late final AIProvider _provider;
+  static int _mockCycle = 0;
 
   AIService() {
     _provider = GeminiProvider();
@@ -30,11 +32,22 @@ class AIService {
   ) async {
     if (AppConfig.kMockMode) {
       await Future.delayed(const Duration(seconds: 1)); // simulate latency
+      
+      _mockCycle++;
+      double testScore;
+      if (_mockCycle % 3 == 1) {
+        testScore = 0.90; // Green (>75%)
+      } else if (_mockCycle % 3 == 2) {
+        testScore = 0.55; // Yellow (40-75%)
+      } else {
+        testScore = 0.20; // Red (<40%)
+      }
+
       return {
         'englishName': 'Rohu',
         'localName': 'Rui (রুই)',
-        'freshnessScore': 0.98,
-        'freshnessStatus': 'Green / 98% Fresh',
+        'freshnessScore': testScore,
+        'freshnessStatus': 'Mocked Status',
         'freshnessEvidence':
             'Clear eyes • bright red gills • Caught within 24 hours',
         'bestCuts': ['Peti', 'Gada'],
@@ -47,7 +60,7 @@ class AIService {
     final connectivityResult = await (Connectivity().checkConnectivity());
 
     // OFFLINE MODE - fallback to error
-    if (connectivityResult == ConnectivityResult.none) {
+    if (connectivityResult.contains(ConnectivityResult.none)) {
       return {
         'error': true,
         'errorType': 'offline',

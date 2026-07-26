@@ -1,4 +1,4 @@
-package com.example.illish
+package com.anuragchak.illish
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -12,6 +12,7 @@ import 'package:gal/gal.dart' as gal;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../core/theme.dart';
+import '../config/app_config.dart';
 import '../services/ai_service.dart';
 import '../services/db_service.dart';
 import 'recognition_sheet.dart';
@@ -373,7 +374,14 @@ class _CameraScreenState extends State<CameraScreen>
 
     Navigator.pop(context); // close dialog
     if (result != null) {
-      result['imagePath'] = imagePath;
+      try {
+        final filename = '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last}';
+        final savedImage = await File(imagePath).copy('${AppConfig.documentsPath}/$filename');
+        result['imagePath'] = filename;
+      } catch (e) {
+        debugPrint('Failed to copy image to documents: $e');
+        result['imagePath'] = imagePath; // fallback
+      }
       await DBService.saveScan(
         result,
         isBookmark: false,
@@ -1307,15 +1315,16 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: Image.file(
-                                          File(item.imagePath!),
+                                          File(DBService.getImagePath(item.imagePath!) ?? ''),
                                           width: 50,
                                           height: 50,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              const Icon(
-                                                Icons.image,
-                                                color: Colors.white54,
-                                              ),
+                                          errorBuilder: (_, __, ___) {
+                                            return const Icon(
+                                              Icons.image,
+                                              color: Colors.white54,
+                                            );
+                                          },
                                         ),
                                       )
                                     : const Icon(

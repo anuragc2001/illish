@@ -3,4 +3,6 @@ class AppConfig {
   static const bool kMockMode = true;
 
   static const String kProviderGemini = 'gemini';
+
+  static String documentsPath = '';
 }

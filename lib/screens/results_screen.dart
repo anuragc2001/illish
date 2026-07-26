@@ -18,10 +18,12 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _animController;
+  late AnimationController _shimmerController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _progressAnimation;
+  late Animation<double> _shimmerAnimation;
   List<Map<String, String>> _videos = [];
   bool _isLoadingVideos = true;
   bool _isBookmarked = false;
@@ -42,6 +44,15 @@ class _ResultsScreenState extends State<ResultsScreen>
       parent: _animController,
       curve: Curves.easeOutBack,
     );
+
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _shimmerAnimation = Tween<double>(begin: 0.2, end: 0.8).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOutSine),
+    );
+    _shimmerController.repeat(reverse: true);
 
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _animController.forward();
@@ -188,6 +199,7 @@ class _ResultsScreenState extends State<ResultsScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -227,6 +239,16 @@ class _ResultsScreenState extends State<ResultsScreen>
 
     // Evaluate timestamp properly
     final timeStr = TimeOfDay.now().format(context);
+
+    // Determine ring and dot color based on score
+    Color ringColor;
+    if (scoreInt >= 75) {
+      ringColor = AppTheme.emeraldGreen;
+    } else if (scoreInt >= 40) {
+      ringColor = AppTheme.amber;
+    } else {
+      ringColor = AppTheme.crimsonRed;
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -481,7 +503,9 @@ class _ResultsScreenState extends State<ResultsScreen>
                           alignment: Alignment.center,
                           children: [
                             AnimatedBuilder(
-                              animation: _animController,
+                              animation: Listenable.merge(
+                                [_animController, _shimmerController],
+                              ),
                               builder: (context, child) {
                                 return SizedBox(
                                   width: 250,
@@ -492,7 +516,8 @@ class _ResultsScreenState extends State<ResultsScreen>
                                         0.0,
                                         1.0,
                                       ),
-                                      AppTheme.neonCyan,
+                                      ringColor,
+                                      _shimmerAnimation.value,
                                     ),
                                   ),
                                 );
@@ -571,17 +596,27 @@ class _ResultsScreenState extends State<ResultsScreen>
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: scoreInt >= 65
-                                      ? AppTheme.emeraldGreen
-                                      : (scoreInt >= 40
-                                            ? Colors.orange
-                                            : Colors.red),
-                                  shape: BoxShape.circle,
-                                ),
+                              AnimatedBuilder(
+                                animation: _shimmerController,
+                                builder: (context, child) {
+                                  return Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: ringColor,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: ringColor.withOpacity(
+                                            _shimmerAnimation.value,
+                                          ),
+                                          blurRadius: 4,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -933,8 +968,9 @@ class _ResultsScreenState extends State<ResultsScreen>
 class FreshnessRingPainter extends CustomPainter {
   final double percentage;
   final Color color;
+  final double shimmerValue;
 
-  FreshnessRingPainter(this.percentage, this.color);
+  FreshnessRingPainter(this.percentage, this.color, this.shimmerValue);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -945,7 +981,7 @@ class FreshnessRingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final glowPaint = Paint()
-      ..color = color.withOpacity(0.4)
+      ..color = color.withOpacity(shimmerValue)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round
@@ -955,7 +991,8 @@ class FreshnessRingPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round;
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 1.5);
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - 6;
@@ -985,7 +1022,9 @@ class FreshnessRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant FreshnessRingPainter oldDelegate) {
-    return oldDelegate.percentage != percentage || oldDelegate.color != color;
+    return oldDelegate.percentage != percentage || 
+           oldDelegate.color != color || 
+           oldDelegate.shimmerValue != shimmerValue;
   }
 }
 
