@@ -16,6 +16,9 @@ class ScanRecord {
   
   List<String> bestCuts = [];
   List<String> idealFor = [];
+  List<String> trickeryTips = [];
+  String? suggestedPrice;
+  String? marketAvgPrice;
   
   DateTime timestamp = DateTime.now();
   bool isSynced = false;

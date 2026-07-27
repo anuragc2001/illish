@@ -104,6 +104,9 @@ During the initial build phase, several advanced features and UX refinements wer
 - **Reverse Geocoding**: Uses `geolocator` and `geocoding` to pull the precise `locality` and `administrativeArea` for the user's location, ensuring highly accurate regional translation.
 - **Intelligent Caching**: YouTube API results are cached in the `RecipeCache` Isar database for up to 7 days to conserve API quotas and improve speed.
 - **Gallery Import & Torch**: Features a flash toggle (Torch mode) for low-light wet markets, and `ImagePicker` integration so users can upload photos from their gallery instead of strictly scanning live.
+- **Price Intelligence**: Gemini now returns seasonal price data and market averages, which are displayed on a dedicated Price Card in the Results Screen.
+- **Build Flavors**: Configured `prod` and `exp` build environments via `flutter_flavorizr` to support experimental features and stable releases.
+- **UI Optimizations**: Replaced fade transitions with sleek slide animations for the recognition sheet. Addressed touch responsiveness ("ghost touches") using `HitTestBehavior.opaque` on `GestureDetector`s, and removed expensive 60fps blur masks on custom painters to fix rendering jank.
 
 ## Design System & Vibe
 

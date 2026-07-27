@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -27,6 +28,7 @@ class _ResultsScreenState extends State<ResultsScreen>
   List<Map<String, String>> _videos = [];
   bool _isLoadingVideos = true;
   bool _isBookmarked = false;
+  bool _showAllTrickeryTips = false;
   String? _videoError;
 
   @override
@@ -73,56 +75,35 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Future<void> _fetchVideos() async {
     final species = widget.aiData['englishName'] ?? 'Fish';
-    final query = '$species fish recipe';
-
-    if (AppConfig.kMockMode || widget.aiData['isOffline'] == true) {
-      // Use cached videos if offline
-      final cachedStr = await DBService.getCachedRecipes(query);
-      if (cachedStr != null) {
-        final List<dynamic> decoded = jsonDecode(cachedStr);
-        _videos = decoded.map((e) => Map<String, String>.from(e)).toList();
-        setState(() => _isLoadingVideos = false);
-        return;
-      }
-
-      setState(() {
-        _videos = [
-          {
-            'title': 'Rohu Fish Curry',
-            'duration': '30 min',
-            'url': 'mock',
-            'thumb': '',
-          },
-          {
-            'title': 'Paturi (Bengali)',
-            'duration': '45 min',
-            'url': 'mock',
-            'thumb': '',
-          },
-          {
-            'title': 'Rohu Fish Fry',
-            'duration': '20 min',
-            'url': 'mock',
-            'thumb': '',
-          },
-        ];
-        _isLoadingVideos = false;
-      });
-      return;
+    
+    // Extract the local name from format "LocalName (English Name)"
+    final localNameRaw = widget.aiData['localName'] as String?;
+    String searchKeyword = species;
+    
+    if (localNameRaw != null && localNameRaw.contains('(')) {
+      // e.g. "Rui (Rohu)" -> "Rui"
+      searchKeyword = localNameRaw.split('(')[0].trim();
+    } else if (localNameRaw != null && localNameRaw.isNotEmpty) {
+      searchKeyword = localNameRaw;
     }
+    
+    final query = '$searchKeyword fish recipe'.trim();
 
     try {
       final cachedStr = await DBService.getCachedRecipes(query);
       if (cachedStr != null) {
         final List<dynamic> decoded = jsonDecode(cachedStr);
-        _videos = decoded.map((e) => Map<String, String>.from(e)).toList();
-        setState(() => _isLoadingVideos = false);
-        return;
+        final parsed = decoded.map((e) => Map<String, dynamic>.from(e).map((k, v) => MapEntry(k, v?.toString() ?? ''))).toList();
+        if (parsed.isNotEmpty) {
+          _videos = parsed;
+          setState(() => _isLoadingVideos = false);
+          return;
+        }
       }
 
       final apiKey = dotenv.env['YOUTUBE_API_KEY'];
       final url = Uri.parse(
-        'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=$apiKey&maxResults=10',
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount',
       );
       final response = await http.get(url);
 
@@ -155,9 +136,30 @@ class _ResultsScreenState extends State<ResultsScreen>
         });
       }
     } catch (e) {
+      // Fallback to hardcoded mock videos if network fails
       setState(() {
-        _videoError = 'Network error';
+        _videos = [
+          {
+            'title': 'Rui Macher Kalia',
+            'channel': 'Bong Eats',
+            'videoId': '6K8R-fK0Y_4',
+            'thumb': 'https://img.youtube.com/vi/6K8R-fK0Y_4/hqdefault.jpg',
+          },
+          {
+            'title': 'Doi Mach',
+            'channel': 'Bong Eats',
+            'videoId': 'h-kKx5F2nK8',
+            'thumb': 'https://img.youtube.com/vi/h-kKx5F2nK8/hqdefault.jpg',
+          },
+          {
+            'title': 'Ilish Macher Jhol',
+            'channel': 'Bong Eats',
+            'videoId': 'X0x925E2v9w',
+            'thumb': 'https://img.youtube.com/vi/X0x925E2v9w/hqdefault.jpg',
+          },
+        ];
         _isLoadingVideos = false;
+        _videoError = null;
       });
     }
   }
@@ -188,10 +190,19 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   void _openAllRecipes() {
     final species = widget.aiData['englishName'] ?? 'Fish';
+    final localNameRaw = widget.aiData['localName'] as String?;
+    String searchKeyword = species;
+    
+    if (localNameRaw != null && localNameRaw.contains('(')) {
+      searchKeyword = localNameRaw.split('(')[0].trim();
+    } else if (localNameRaw != null && localNameRaw.isNotEmpty) {
+      searchKeyword = localNameRaw;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AllRecipesScreen(query: '$species fish recipe'),
+        builder: (context) => AllRecipesScreen(query: '$searchKeyword fish recipe'),
       ),
     );
   }
@@ -224,6 +235,20 @@ class _ResultsScreenState extends State<ResultsScreen>
     final List<String> idealFor = List<String>.from(
       widget.aiData['idealFor'] ?? [],
     );
+    final List<String> trickeryTips = List<String>.from(
+      widget.aiData['trickeryTips'] ?? [],
+    );
+    final String suggestedPrice =
+        widget.aiData['suggestedPrice']?.toString() ?? 'N/A';
+    final String marketAvgPrice =
+        widget.aiData['marketAvgPrice']?.toString() ?? 'N/A';
+    final String priceExplanation =
+        widget.aiData['priceExplanation']?.toString() ??
+        'Price explanation not available.';
+    final String marketAvgExplanation =
+        widget.aiData['marketAvgExplanation']?.toString() ??
+        'Market average calculation not available.';
+
     final bool isError = widget.aiData['error'] == true;
 
     // Status word classification
@@ -237,8 +262,34 @@ class _ResultsScreenState extends State<ResultsScreen>
     else
       statusWord = 'Poor';
 
-    // Evaluate timestamp properly
-    final timeStr = TimeOfDay.now().format(context);
+    // Evaluate timestamp and location properly
+    final DateTime scanTime = widget.aiData['timestamp'] != null 
+        ? DateTime.parse(widget.aiData['timestamp']) 
+        : DateTime.now();
+    final timeStr = TimeOfDay.fromDateTime(scanTime).format(context);
+    
+    // Format date string nicely
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final scanDay = DateTime(scanTime.year, scanTime.month, scanTime.day);
+    final difference = today.difference(scanDay).inDays;
+
+    String dateStr;
+    if (difference == 0) {
+      dateStr = 'today';
+    } else if (difference == 1) {
+      dateStr = 'yesterday';
+    } else if (scanTime.year == now.year) {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      String suffix = 'th';
+      if (scanTime.day % 10 == 1 && scanTime.day != 11) suffix = 'st';
+      else if (scanTime.day % 10 == 2 && scanTime.day != 12) suffix = 'nd';
+      else if (scanTime.day % 10 == 3 && scanTime.day != 13) suffix = 'rd';
+      
+      dateStr = '${scanTime.day}$suffix ${months[scanTime.month - 1]}';
+    } else {
+      dateStr = '${scanTime.day.toString().padLeft(2, '0')}/${scanTime.month.toString().padLeft(2, '0')}/${scanTime.year}';
+    }
 
     // Determine ring and dot color based on score
     Color ringColor;
@@ -302,6 +353,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                     const SizedBox(height: 32),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
+                      behavior: HitTestBehavior.opaque,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -503,22 +555,66 @@ class _ResultsScreenState extends State<ResultsScreen>
                           alignment: Alignment.center,
                           children: [
                             AnimatedBuilder(
-                              animation: Listenable.merge(
-                                [_animController, _shimmerController],
-                              ),
+                              animation: Listenable.merge([
+                                _animController,
+                                _shimmerController,
+                              ]),
                               builder: (context, child) {
                                 return SizedBox(
                                   width: 250,
                                   height: 250,
-                                  child: CustomPaint(
-                                    painter: FreshnessRingPainter(
-                                      (score * _progressAnimation.value).clamp(
-                                        0.0,
-                                        1.0,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // Option A: Full circular aura (Commented for A/B testing)
+                                      /*
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: ringColor.withOpacity(
+                                                _shimmerAnimation.value * 0.4,
+                                              ),
+                                              blurRadius: 40,
+                                              spreadRadius: -10,
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      ringColor,
-                                      _shimmerAnimation.value,
-                                    ),
+                                      */
+                                      
+                                      // Option B: Glow along the ring itself (Performant ImageFiltered)
+                                      Opacity(
+                                        opacity: _shimmerAnimation.value,
+                                        child: ImageFiltered(
+                                          imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                          child: CustomPaint(
+                                            painter: FreshnessRingPainter(
+                                              (score * _progressAnimation.value).clamp(
+                                                0.0,
+                                                1.0,
+                                              ),
+                                              ringColor,
+                                              1.0,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      
+                                      // Foreground crisp ring
+                                      CustomPaint(
+                                        painter: FreshnessRingPainter(
+                                          (score * _progressAnimation.value).clamp(
+                                            0.0,
+                                            1.0,
+                                          ),
+                                          ringColor,
+                                          _shimmerAnimation.value,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
@@ -648,7 +744,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Scanned today, $timeStr",
+                            "Scanned $dateStr, $timeStr",
                             style: GoogleFonts.inter(
                               color: Colors.white38,
                               fontSize: 12,
@@ -714,6 +810,11 @@ class _ResultsScreenState extends State<ResultsScreen>
                     ),
                     const SizedBox(height: 24),
 
+                    if (trickeryTips.isNotEmpty) ...[
+                      _buildVendorTrickeryCard(trickeryTips),
+                      const SizedBox(height: 24),
+                    ],
+
                     IntrinsicHeight(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -736,7 +837,18 @@ class _ResultsScreenState extends State<ResultsScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
+
+                    if (suggestedPrice != 'N/A') ...[
+                      _buildPriceCard(
+                        context,
+                        suggestedPrice,
+                        marketAvgPrice,
+                        priceExplanation,
+                        marketAvgExplanation,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -887,6 +999,244 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
+  Widget _buildPriceCard(
+    BuildContext context,
+    String suggestedPrice,
+    String marketAvg,
+    String explanation,
+    String marketAvgExplanation,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Suggested Price Range",
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Opacity(
+                opacity: 0.0,
+                child: Text(" /kg", style: GoogleFonts.inter(fontSize: 14)),
+              ),
+              Text(
+                "₹$suggestedPrice",
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1.0,
+                ),
+              ),
+              Text(
+                " /kg",
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Market avg: ₹$marketAvg/kg",
+                style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: AppTheme.cardBackground,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: Text(
+                        "Market Average",
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      content: Text(
+                        marketAvgExplanation,
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            "OK",
+                            style: GoogleFonts.inter(color: AppTheme.neonCyan),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Icon(
+                  Icons.info_outline,
+                  color: Colors.white38,
+                  size: 14,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVendorTrickeryCard(List<String> trickeryTips) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header / Default View
+          InkWell(
+            borderRadius: _showAllTrickeryTips
+                ? const BorderRadius.vertical(top: Radius.circular(16))
+                : BorderRadius.circular(16),
+            onTap: () {
+              if (trickeryTips.length > 1) {
+                setState(() => _showAllTrickeryTips = !_showAllTrickeryTips);
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppTheme.amber,
+                    size: 25,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _showAllTrickeryTips
+                              ? "Vendor Trickery Alerts"
+                              : trickeryTips.first,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (trickeryTips.length > 1) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      _showAllTrickeryTips ? "Hide tips" : "View tips",
+                      style: GoogleFonts.inter(
+                        color: AppTheme.neonCyan,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _showAllTrickeryTips
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_right,
+                      color: AppTheme.neonCyan,
+                      size: 16,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // Expanded view
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: _showAllTrickeryTips && trickeryTips.length > 1
+                ? Column(
+                    children: [
+                      const Divider(color: Colors.white10, height: 1),
+                      ...trickeryTips
+                          .map(
+                            (tip) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Icon(
+                                      Icons.circle,
+                                      color: AppTheme.amber,
+                                      size: 6,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      tip,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      const SizedBox(height: 8),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDynamicVideoCard(
     String title,
     String subtitle,
@@ -895,6 +1245,7 @@ class _ResultsScreenState extends State<ResultsScreen>
   ) {
     return GestureDetector(
       onTap: () => _launchVideo(videoId),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         width: 150,
         margin: const EdgeInsets.only(right: 16),
@@ -980,19 +1331,11 @@ class FreshnessRingPainter extends CustomPainter {
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
 
-    final glowPaint = Paint()
-      ..color = color.withOpacity(shimmerValue)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12.0);
-
     final fgPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 1.5);
+      ..strokeCap = StrokeCap.round;
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width / 2) - 6;
@@ -1000,15 +1343,6 @@ class FreshnessRingPainter extends CustomPainter {
     canvas.drawCircle(center, radius, bgPaint);
 
     final sweepAngle = 2 * pi * percentage;
-
-    // Draw glow
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -pi / 2,
-      sweepAngle,
-      false,
-      glowPaint,
-    );
 
     // Draw foreground arc
     canvas.drawArc(
@@ -1022,9 +1356,9 @@ class FreshnessRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant FreshnessRingPainter oldDelegate) {
-    return oldDelegate.percentage != percentage || 
-           oldDelegate.color != color || 
-           oldDelegate.shimmerValue != shimmerValue;
+    return oldDelegate.percentage != percentage ||
+        oldDelegate.color != color ||
+        oldDelegate.shimmerValue != shimmerValue;
   }
 }
 
@@ -1062,7 +1396,7 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
     try {
       final apiKey = dotenv.env['YOUTUBE_API_KEY'];
       var urlStr =
-          'https://www.googleapis.com/youtube/v3/search?part=snippet&q=${widget.query}&type=video&key=$apiKey&maxResults=10';
+          'https://www.googleapis.com/youtube/v3/search?part=snippet&q=${widget.query}&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount';
       if (_pageToken != null) urlStr += '&pageToken=$_pageToken';
 
       final response = await http.get(Uri.parse(urlStr));

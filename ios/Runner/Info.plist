@@ -78,5 +78,9 @@
     <string>Needed to pick fish images from gallery.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Needed to save scanned fish images to your gallery.</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>youtube</string>
+    </array>
   </dict>
 </plist>
