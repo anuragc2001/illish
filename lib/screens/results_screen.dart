@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -74,56 +75,35 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Future<void> _fetchVideos() async {
     final species = widget.aiData['englishName'] ?? 'Fish';
-    final query = '$species fish recipe';
-
-    if (AppConfig.kMockMode || widget.aiData['isOffline'] == true) {
-      // Use cached videos if offline
-      final cachedStr = await DBService.getCachedRecipes(query);
-      if (cachedStr != null) {
-        final List<dynamic> decoded = jsonDecode(cachedStr);
-        _videos = decoded.map((e) => Map<String, String>.from(e)).toList();
-        setState(() => _isLoadingVideos = false);
-        return;
-      }
-
-      setState(() {
-        _videos = [
-          {
-            'title': 'Rohu Fish Curry',
-            'duration': '30 min',
-            'url': 'mock',
-            'thumb': '',
-          },
-          {
-            'title': 'Paturi (Bengali)',
-            'duration': '45 min',
-            'url': 'mock',
-            'thumb': '',
-          },
-          {
-            'title': 'Rohu Fish Fry',
-            'duration': '20 min',
-            'url': 'mock',
-            'thumb': '',
-          },
-        ];
-        _isLoadingVideos = false;
-      });
-      return;
+    
+    // Extract the local name from format "LocalName (English Name)"
+    final localNameRaw = widget.aiData['localName'] as String?;
+    String searchKeyword = species;
+    
+    if (localNameRaw != null && localNameRaw.contains('(')) {
+      // e.g. "Rui (Rohu)" -> "Rui"
+      searchKeyword = localNameRaw.split('(')[0].trim();
+    } else if (localNameRaw != null && localNameRaw.isNotEmpty) {
+      searchKeyword = localNameRaw;
     }
+    
+    final query = '$searchKeyword fish recipe'.trim();
 
     try {
       final cachedStr = await DBService.getCachedRecipes(query);
       if (cachedStr != null) {
         final List<dynamic> decoded = jsonDecode(cachedStr);
-        _videos = decoded.map((e) => Map<String, String>.from(e)).toList();
-        setState(() => _isLoadingVideos = false);
-        return;
+        final parsed = decoded.map((e) => Map<String, dynamic>.from(e).map((k, v) => MapEntry(k, v?.toString() ?? ''))).toList();
+        if (parsed.isNotEmpty) {
+          _videos = parsed;
+          setState(() => _isLoadingVideos = false);
+          return;
+        }
       }
 
       final apiKey = dotenv.env['YOUTUBE_API_KEY'];
       final url = Uri.parse(
-        'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=$apiKey&maxResults=10',
+        'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount',
       );
       final response = await http.get(url);
 
@@ -156,9 +136,30 @@ class _ResultsScreenState extends State<ResultsScreen>
         });
       }
     } catch (e) {
+      // Fallback to hardcoded mock videos if network fails
       setState(() {
-        _videoError = 'Network error';
+        _videos = [
+          {
+            'title': 'Rui Macher Kalia',
+            'channel': 'Bong Eats',
+            'videoId': '6K8R-fK0Y_4',
+            'thumb': 'https://img.youtube.com/vi/6K8R-fK0Y_4/hqdefault.jpg',
+          },
+          {
+            'title': 'Doi Mach',
+            'channel': 'Bong Eats',
+            'videoId': 'h-kKx5F2nK8',
+            'thumb': 'https://img.youtube.com/vi/h-kKx5F2nK8/hqdefault.jpg',
+          },
+          {
+            'title': 'Ilish Macher Jhol',
+            'channel': 'Bong Eats',
+            'videoId': 'X0x925E2v9w',
+            'thumb': 'https://img.youtube.com/vi/X0x925E2v9w/hqdefault.jpg',
+          },
+        ];
         _isLoadingVideos = false;
+        _videoError = null;
       });
     }
   }
@@ -189,10 +190,19 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   void _openAllRecipes() {
     final species = widget.aiData['englishName'] ?? 'Fish';
+    final localNameRaw = widget.aiData['localName'] as String?;
+    String searchKeyword = species;
+    
+    if (localNameRaw != null && localNameRaw.contains('(')) {
+      searchKeyword = localNameRaw.split('(')[0].trim();
+    } else if (localNameRaw != null && localNameRaw.isNotEmpty) {
+      searchKeyword = localNameRaw;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AllRecipesScreen(query: '$species fish recipe'),
+        builder: (context) => AllRecipesScreen(query: '$searchKeyword fish recipe'),
       ),
     );
   }
@@ -252,8 +262,34 @@ class _ResultsScreenState extends State<ResultsScreen>
     else
       statusWord = 'Poor';
 
-    // Evaluate timestamp properly
-    final timeStr = TimeOfDay.now().format(context);
+    // Evaluate timestamp and location properly
+    final DateTime scanTime = widget.aiData['timestamp'] != null 
+        ? DateTime.parse(widget.aiData['timestamp']) 
+        : DateTime.now();
+    final timeStr = TimeOfDay.fromDateTime(scanTime).format(context);
+    
+    // Format date string nicely
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final scanDay = DateTime(scanTime.year, scanTime.month, scanTime.day);
+    final difference = today.difference(scanDay).inDays;
+
+    String dateStr;
+    if (difference == 0) {
+      dateStr = 'today';
+    } else if (difference == 1) {
+      dateStr = 'yesterday';
+    } else if (scanTime.year == now.year) {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      String suffix = 'th';
+      if (scanTime.day % 10 == 1 && scanTime.day != 11) suffix = 'st';
+      else if (scanTime.day % 10 == 2 && scanTime.day != 12) suffix = 'nd';
+      else if (scanTime.day % 10 == 3 && scanTime.day != 13) suffix = 'rd';
+      
+      dateStr = '${scanTime.day}$suffix ${months[scanTime.month - 1]}';
+    } else {
+      dateStr = '${scanTime.day.toString().padLeft(2, '0')}/${scanTime.month.toString().padLeft(2, '0')}/${scanTime.year}';
+    }
 
     // Determine ring and dot color based on score
     Color ringColor;
@@ -527,15 +563,58 @@ class _ResultsScreenState extends State<ResultsScreen>
                                 return SizedBox(
                                   width: 250,
                                   height: 250,
-                                  child: CustomPaint(
-                                    painter: FreshnessRingPainter(
-                                      (score * _progressAnimation.value).clamp(
-                                        0.0,
-                                        1.0,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // Option A: Full circular aura (Commented for A/B testing)
+                                      /*
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: ringColor.withOpacity(
+                                                _shimmerAnimation.value * 0.4,
+                                              ),
+                                              blurRadius: 40,
+                                              spreadRadius: -10,
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      ringColor,
-                                      _shimmerAnimation.value,
-                                    ),
+                                      */
+                                      
+                                      // Option B: Glow along the ring itself (Performant ImageFiltered)
+                                      Opacity(
+                                        opacity: _shimmerAnimation.value,
+                                        child: ImageFiltered(
+                                          imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                          child: CustomPaint(
+                                            painter: FreshnessRingPainter(
+                                              (score * _progressAnimation.value).clamp(
+                                                0.0,
+                                                1.0,
+                                              ),
+                                              ringColor,
+                                              1.0,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      
+                                      // Foreground crisp ring
+                                      CustomPaint(
+                                        painter: FreshnessRingPainter(
+                                          (score * _progressAnimation.value).clamp(
+                                            0.0,
+                                            1.0,
+                                          ),
+                                          ringColor,
+                                          _shimmerAnimation.value,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
@@ -665,7 +744,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Scanned today, $timeStr",
+                            "Scanned $dateStr, $timeStr",
                             style: GoogleFonts.inter(
                               color: Colors.white38,
                               fontSize: 12,
@@ -1317,7 +1396,7 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
     try {
       final apiKey = dotenv.env['YOUTUBE_API_KEY'];
       var urlStr =
-          'https://www.googleapis.com/youtube/v3/search?part=snippet&q=${widget.query}&type=video&key=$apiKey&maxResults=10';
+          'https://www.googleapis.com/youtube/v3/search?part=snippet&q=${widget.query}&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount';
       if (_pageToken != null) urlStr += '&pageToken=$_pageToken';
 
       final response = await http.get(Uri.parse(urlStr));

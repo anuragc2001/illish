@@ -45,11 +45,15 @@ class DBService {
       ..imagePath = aiData['imagePath']
       ..englishName = aiData['englishName']
       ..localName = aiData['localName']
+      ..region = aiData['location']
       ..freshnessScore = aiData['freshnessScore']
       ..freshnessStatus = aiData['freshnessStatus']
       ..freshnessEvidence = aiData['freshnessEvidence']
       ..bestCuts = List<String>.from(aiData['bestCuts'] ?? [])
       ..idealFor = List<String>.from(aiData['idealFor'] ?? [])
+      ..trickeryTips = List<String>.from(aiData['trickeryTips'] ?? [])
+      ..suggestedPrice = aiData['suggestedPrice']?.toString()
+      ..marketAvgPrice = aiData['marketAvgPrice']?.toString()
       ..timestamp = DateTime.now()
       ..isBookmark = isBookmark;
 

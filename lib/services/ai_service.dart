@@ -79,6 +79,7 @@ class AIService {
         'priceExplanation': 'Calculated based on 90% freshness, early morning catch premium, and current wholesale rates in Kolkata.',
         'marketAvgExplanation': 'The market average price is compiled from regional crowdsourced reports and wholesale benchmark data from the past week.',
         'isOffline': true,
+        'location': location,
       };
     }
 
@@ -98,7 +99,11 @@ class AIService {
     try {
       final response = await _provider
           .analyzeFish(imagePath, location)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 25));
+      
+      // Inject location into response for downstream usage
+      response['location'] = location;
+      
       return response;
     } on TimeoutException catch (_) {
       return {

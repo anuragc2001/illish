@@ -67,15 +67,30 @@ const ScanRecordSchema = CollectionSchema(
       name: r'localName',
       type: IsarType.string,
     ),
-    r'region': PropertySchema(
+    r'marketAvgPrice': PropertySchema(
       id: 10,
+      name: r'marketAvgPrice',
+      type: IsarType.string,
+    ),
+    r'region': PropertySchema(
+      id: 11,
       name: r'region',
       type: IsarType.string,
     ),
+    r'suggestedPrice': PropertySchema(
+      id: 12,
+      name: r'suggestedPrice',
+      type: IsarType.string,
+    ),
     r'timestamp': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'timestamp',
       type: IsarType.dateTime,
+    ),
+    r'trickeryTips': PropertySchema(
+      id: 14,
+      name: r'trickeryTips',
+      type: IsarType.stringList,
     )
   },
   estimateSize: _scanRecordEstimateSize,
@@ -143,9 +158,28 @@ int _scanRecordEstimateSize(
     }
   }
   {
+    final value = object.marketAvgPrice;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.region;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.suggestedPrice;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  bytesCount += 3 + object.trickeryTips.length * 3;
+  {
+    for (var i = 0; i < object.trickeryTips.length; i++) {
+      final value = object.trickeryTips[i];
+      bytesCount += value.length * 3;
     }
   }
   return bytesCount;
@@ -167,8 +201,11 @@ void _scanRecordSerialize(
   writer.writeBool(offsets[7], object.isBookmark);
   writer.writeBool(offsets[8], object.isSynced);
   writer.writeString(offsets[9], object.localName);
-  writer.writeString(offsets[10], object.region);
-  writer.writeDateTime(offsets[11], object.timestamp);
+  writer.writeString(offsets[10], object.marketAvgPrice);
+  writer.writeString(offsets[11], object.region);
+  writer.writeString(offsets[12], object.suggestedPrice);
+  writer.writeDateTime(offsets[13], object.timestamp);
+  writer.writeStringList(offsets[14], object.trickeryTips);
 }
 
 ScanRecord _scanRecordDeserialize(
@@ -189,8 +226,11 @@ ScanRecord _scanRecordDeserialize(
   object.isBookmark = reader.readBool(offsets[7]);
   object.isSynced = reader.readBool(offsets[8]);
   object.localName = reader.readStringOrNull(offsets[9]);
-  object.region = reader.readStringOrNull(offsets[10]);
-  object.timestamp = reader.readDateTime(offsets[11]);
+  object.marketAvgPrice = reader.readStringOrNull(offsets[10]);
+  object.region = reader.readStringOrNull(offsets[11]);
+  object.suggestedPrice = reader.readStringOrNull(offsets[12]);
+  object.timestamp = reader.readDateTime(offsets[13]);
+  object.trickeryTips = reader.readStringList(offsets[14]) ?? [];
   return object;
 }
 
@@ -224,7 +264,13 @@ P _scanRecordDeserializeProp<P>(
     case 10:
       return (reader.readStringOrNull(offset)) as P;
     case 11:
+      return (reader.readStringOrNull(offset)) as P;
+    case 12:
+      return (reader.readStringOrNull(offset)) as P;
+    case 13:
       return (reader.readDateTime(offset)) as P;
+    case 14:
+      return (reader.readStringList(offset) ?? []) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -1694,6 +1740,160 @@ extension ScanRecordQueryFilter
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'marketAvgPrice',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'marketAvgPrice',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'marketAvgPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'marketAvgPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'marketAvgPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'marketAvgPrice',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'marketAvgPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'marketAvgPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'marketAvgPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'marketAvgPrice',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'marketAvgPrice',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      marketAvgPriceIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'marketAvgPrice',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> regionIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
@@ -1842,6 +2042,160 @@ extension ScanRecordQueryFilter
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'suggestedPrice',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'suggestedPrice',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'suggestedPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'suggestedPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'suggestedPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'suggestedPrice',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'suggestedPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'suggestedPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'suggestedPrice',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'suggestedPrice',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'suggestedPrice',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      suggestedPriceIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'suggestedPrice',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> timestampEqualTo(
       DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -1893,6 +2247,231 @@ extension ScanRecordQueryFilter
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'trickeryTips',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'trickeryTips',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'trickeryTips',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'trickeryTips',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'trickeryTips',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'trickeryTips',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'trickeryTips',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'trickeryTips',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'trickeryTips',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'trickeryTips',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'trickeryTips',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'trickeryTips',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'trickeryTips',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'trickeryTips',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'trickeryTips',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
+      trickeryTipsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'trickeryTips',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 }
@@ -2004,6 +2583,19 @@ extension ScanRecordQuerySortBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByMarketAvgPrice() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'marketAvgPrice', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy>
+      sortByMarketAvgPriceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'marketAvgPrice', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByRegion() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'region', Sort.asc);
@@ -2013,6 +2605,19 @@ extension ScanRecordQuerySortBy
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByRegionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'region', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortBySuggestedPrice() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'suggestedPrice', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy>
+      sortBySuggestedPriceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'suggestedPrice', Sort.desc);
     });
   }
 
@@ -2142,6 +2747,19 @@ extension ScanRecordQuerySortThenBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByMarketAvgPrice() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'marketAvgPrice', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy>
+      thenByMarketAvgPriceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'marketAvgPrice', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByRegion() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'region', Sort.asc);
@@ -2151,6 +2769,19 @@ extension ScanRecordQuerySortThenBy
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByRegionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'region', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenBySuggestedPrice() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'suggestedPrice', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy>
+      thenBySuggestedPriceDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'suggestedPrice', Sort.desc);
     });
   }
 
@@ -2236,6 +2867,14 @@ extension ScanRecordQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByMarketAvgPrice(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'marketAvgPrice',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByRegion(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2243,9 +2882,23 @@ extension ScanRecordQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctBySuggestedPrice(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'suggestedPrice',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByTimestamp() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'timestamp');
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByTrickeryTips() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'trickeryTips');
     });
   }
 }
@@ -2320,15 +2973,34 @@ extension ScanRecordQueryProperty
     });
   }
 
+  QueryBuilder<ScanRecord, String?, QQueryOperations> marketAvgPriceProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'marketAvgPrice');
+    });
+  }
+
   QueryBuilder<ScanRecord, String?, QQueryOperations> regionProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'region');
     });
   }
 
+  QueryBuilder<ScanRecord, String?, QQueryOperations> suggestedPriceProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'suggestedPrice');
+    });
+  }
+
   QueryBuilder<ScanRecord, DateTime, QQueryOperations> timestampProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'timestamp');
+    });
+  }
+
+  QueryBuilder<ScanRecord, List<String>, QQueryOperations>
+      trickeryTipsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'trickeryTips');
     });
   }
 }

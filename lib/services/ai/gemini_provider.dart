@@ -9,7 +9,7 @@ class GeminiProvider implements AIProvider {
 
   GeminiProvider() {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
-    final modelName = dotenv.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash';
+    final modelName = dotenv.env['GEMINI_MODEL'] ?? 'gemini-3.6-flash';
     if (apiKey != null && apiKey.isNotEmpty) {
       _cloudModel = GenerativeModel(model: modelName, apiKey: apiKey);
     } else {
@@ -57,9 +57,9 @@ Return a raw JSON object (no markdown, no backticks) with exactly this structure
   "freshnessScore": 0.95, // float between 0.0 and 1.0 based on eye cloudiness, gill color, skin texture
   "freshnessStatus": "Green / 95% Fresh", // e.g., Green/Yellow/Red
   "freshnessEvidence": "Clear eyes • bright red gills", // bullet points separated by ' • '. Keep each point extremely short (under 5 words).
-  "bestCuts": ["List of 3 authentic local fishmonger cuts commonly used in $location markets (e.g. if in West Bengal, use real Bengali terms like 'Peti', 'Gada', etc. instead of generic 'steaks'). Format strictly as: LocalName (English translation). Keep under 8 words per item."],
-  "idealFor": ["List of authentic local recipes based on $location. Format strictly as: LocalName (English translation). Keep under 8 words per item."],
-  "trickeryTips": ["List of 1 to 6 vendor trickery alerts or general buying tips. Keep ALL tips extremely concise and short (under 10 words each). Start the first tip with 'Vendor trickery:'. Example: 'Vendor trickery: weigh before ice is added', 'Press the flesh - should bounce back', etc."],
+  "bestCuts": ["List of 3 hyper-local authentic fishmonger cuts commonly used in $location markets. Do NOT use generic Hindi words like 'Sabut' if the location is West Bengal. Use hyper-local terms (e.g., 'Peti', 'Gada' for Bengal). Format STRICTLY as: LocalName (Extremely brief English equivalent, max 2 words). Example: Peti (Belly)."],
+  "idealFor": ["List of authentic local recipes based on $location. Format strictly as: LocalName (Extremely brief English equivalent, max 2 words). Example: Rui Posto (Poppy Seed Curry)."],
+  "trickeryTips": ["List of 1 to 6 vendor trickery alerts or buying tips. MUST STRICTLY follow this format: 'Short Title - Brief description'. Example: 'Ice Weight - Vendor may weigh before ice is removed', 'Flesh Test - Press flesh to see if it bounces back'. Keep under 10 words each."],
   "suggestedPrice": "300 - 320", // string, numerical range representing fair price in local currency. CALCULATE THIS strictly based on the fish type, freshness evidence from the image, location ($location), and the current time/day/season.
   "marketAvgPrice": "340", // string, numerical value representing market average for this fish type and location until a DB is available.
   "priceExplanation": "Calculated based on [Freshness %] freshness, [Time/Day/Season] demand, and current $location market rates.",

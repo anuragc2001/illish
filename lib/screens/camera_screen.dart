@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -43,6 +44,8 @@ class _CameraScreenState extends State<CameraScreen>
   bool _isPickerOpen = false;
   bool _isUIHidden = false;
   final ImagePicker _picker = ImagePicker();
+  Timer? _locationTimer; // Deprecated, kept for reference if needed
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   double _currentZoom = 1.0;
   double _minZoom = 1.0;
@@ -53,6 +56,7 @@ class _CameraScreenState extends State<CameraScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
     _initCamera().then((_) {
       if (mounted) {
         _initLocation();
@@ -178,7 +182,71 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     try {
-      Position position = await Geolocator.getCurrentPosition();
+      Position? position = await Geolocator.getLastKnownPosition();
+      position ??= await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 5),
+      );
+
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks.first;
+          final loc = '${place.locality}, ${place.administrativeArea}';
+          if (mounted) {
+            setState(() {
+              _currentLocation = loc;
+            });
+            _saveLocationHistory(loc);
+            _triggerLocationAnimation();
+          }
+        }
+      } catch (geocodingError) {
+        debugPrint('Geocoding error: $geocodingError');
+        if (mounted) {
+          final loc =
+              '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
+          setState(() {
+            _currentLocation = loc;
+          });
+          _saveLocationHistory(loc);
+          _triggerLocationAnimation();
+        }
+      }
+    } catch (e) {
+      debugPrint('Location error: $e');
+      if (mounted) {
+        // Fallback if completely unable to get GPS
+        setState(() => _currentLocation = 'Unknown Location');
+      }
+    }
+
+    // Start background distance tracking only after permissions are confirmed
+    if (_positionStreamSubscription == null) {
+      _positionStreamSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+              distanceFilter: 500, // 500 meters travel distance
+            ),
+          ).listen(
+            (Position position) {
+              if (mounted) {
+                _updateLocationFromPosition(position);
+              }
+            },
+            onError: (e) {
+              debugPrint('Location stream error: $e');
+            },
+          );
+    }
+  }
+
+  Future<void> _updateLocationFromPosition(Position position) async {
+    try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
@@ -191,11 +259,18 @@ class _CameraScreenState extends State<CameraScreen>
             _currentLocation = loc;
           });
           _saveLocationHistory(loc);
-          _triggerLocationAnimation();
         }
       }
-    } catch (e) {
-      if (mounted) setState(() => _currentLocation = 'Unknown Location');
+    } catch (geocodingError) {
+      debugPrint('Stream Geocoding error: $geocodingError');
+      if (mounted) {
+        final loc =
+            '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
+        setState(() {
+          _currentLocation = loc;
+        });
+        _saveLocationHistory(loc);
+      }
     }
   }
 
@@ -378,8 +453,11 @@ class _CameraScreenState extends State<CameraScreen>
     Navigator.pop(context); // close dialog
     if (result != null) {
       try {
-        final filename = '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last}';
-        final savedImage = await File(imagePath).copy('${AppConfig.documentsPath}/$filename');
+        final filename =
+            '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last}';
+        final savedImage = await File(
+          imagePath,
+        ).copy('${AppConfig.documentsPath}/$filename');
         result['imagePath'] = filename;
       } catch (e) {
         debugPrint('Failed to copy image to documents: $e');
@@ -418,17 +496,25 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       _controller?.pausePreview();
     } else if (state == AppLifecycleState.resumed) {
       _controller?.resumePreview();
+
+      // Fetch location when app is brought back to foreground
+      if (mounted) {
+        _initLocation();
+      }
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _locationTimer?.cancel();
+    _positionStreamSubscription?.cancel();
     _controller?.dispose();
     _pulseController.dispose();
     _focusController.dispose();
@@ -579,135 +665,148 @@ class _CameraScreenState extends State<CameraScreen>
                               onTap: () {
                                 showModalBottomSheet(
                                   context: context,
+                                  isScrollControlled: true,
                                   backgroundColor: AppTheme.cardBackground,
                                   shape: const RoundedRectangleBorder(
                                     borderRadius: BorderRadius.vertical(
                                       top: Radius.circular(24),
                                     ),
                                   ),
-                                  builder: (context) => Padding(
-                                    padding: const EdgeInsets.all(24.0),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Select Location",
-                                          style: GoogleFonts.inter(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        ListTile(
-                                          leading: const Icon(
-                                            Icons.my_location,
-                                            color: AppTheme.neonCyan,
-                                          ),
-                                          title: Text(
-                                            "Current Location",
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            "Detect using GPS",
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white54,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          onTap: () {
-                                            Navigator.pop(context);
-                                            setState(
-                                              () => _currentLocation =
-                                                  "Locating...",
-                                            );
-                                            _initLocation();
-                                          },
-                                        ),
-                                        const Divider(color: Colors.white10),
-                                        if (_locationHistory.isNotEmpty) ...[
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            child: Text(
-                                              "RECENT",
+                                  builder: (context) => SafeArea(
+                                    child: SingleChildScrollView(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24.0),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Select Location",
                                               style: GoogleFonts.inter(
-                                                color: Colors.white38,
-                                                fontSize: 12,
+                                                color: Colors.white,
+                                                fontSize: 18,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                          ),
-                                          ..._locationHistory.map(
-                                            (loc) => ListTile(
+                                            const SizedBox(height: 16),
+                                            ListTile(
                                               leading: const Icon(
-                                                Icons.history,
+                                                Icons.my_location,
+                                                color: AppTheme.neonCyan,
+                                              ),
+                                              title: Text(
+                                                "Current Location",
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                "Detect using GPS",
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                setState(
+                                                  () => _currentLocation =
+                                                      "Locating...",
+                                                );
+                                                _initLocation();
+                                              },
+                                            ),
+                                            const Divider(
+                                              color: Colors.white10,
+                                            ),
+                                            if (_locationHistory
+                                                .isNotEmpty) ...[
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 8,
+                                                    ),
+                                                child: Text(
+                                                  "RECENT",
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white38,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              ..._locationHistory.map(
+                                                (loc) => ListTile(
+                                                  leading: const Icon(
+                                                    Icons.history,
+                                                    color: Colors.white54,
+                                                  ),
+                                                  title: Text(
+                                                    loc,
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  onTap: () {
+                                                    setState(
+                                                      () => _currentLocation =
+                                                          loc,
+                                                    );
+                                                    _saveLocationHistory(loc);
+                                                    _triggerLocationAnimation();
+                                                    Navigator.pop(context);
+                                                  },
+                                                ),
+                                              ),
+                                              const Divider(
+                                                color: Colors.white10,
+                                              ),
+                                            ],
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 8,
+                                                  ),
+                                              child: Text(
+                                                "NEARBY CITIES",
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white38,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.location_city,
                                                 color: Colors.white54,
                                               ),
                                               title: Text(
-                                                loc,
+                                                "Kolkata, West Bengal",
                                                 style: GoogleFonts.inter(
                                                   color: Colors.white,
                                                 ),
                                               ),
                                               onTap: () {
                                                 setState(
-                                                  () => _currentLocation = loc,
+                                                  () => _currentLocation =
+                                                      "Kolkata, West Bengal",
                                                 );
-                                                _saveLocationHistory(loc);
+                                                _saveLocationHistory(
+                                                  "Kolkata, West Bengal",
+                                                );
                                                 _triggerLocationAnimation();
                                                 Navigator.pop(context);
                                               },
                                             ),
-                                          ),
-                                          const Divider(color: Colors.white10),
-                                        ],
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            "NEARBY CITIES",
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white38,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                            const SizedBox(height: 16),
+                                          ],
                                         ),
-                                        ListTile(
-                                          leading: const Icon(
-                                            Icons.location_city,
-                                            color: Colors.white54,
-                                          ),
-                                          title: Text(
-                                            "Kolkata, West Bengal",
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          onTap: () {
-                                            setState(
-                                              () => _currentLocation =
-                                                  "Kolkata, West Bengal",
-                                            );
-                                            _saveLocationHistory(
-                                              "Kolkata, West Bengal",
-                                            );
-                                            _triggerLocationAnimation();
-                                            Navigator.pop(context);
-                                          },
-                                        ),
-                                        const SizedBox(height: 16),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 );
@@ -736,12 +835,18 @@ class _CameraScreenState extends State<CameraScreen>
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      _currentLocation,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 160,
+                                      ),
+                                      child: Text(
+                                        _currentLocation,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     const SizedBox(width: 4),
@@ -1318,7 +1423,12 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: Image.file(
-                                          File(DBService.getImagePath(item.imagePath!) ?? ''),
+                                          File(
+                                            DBService.getImagePath(
+                                                  item.imagePath!,
+                                                ) ??
+                                                '',
+                                          ),
                                           width: 50,
                                           height: 50,
                                           fit: BoxFit.cover,
@@ -1359,8 +1469,14 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                     'freshnessEvidence': item.freshnessEvidence,
                                     'bestCuts': item.bestCuts,
                                     'idealFor': item.idealFor,
+                                    'trickeryTips': item.trickeryTips,
+                                    'suggestedPrice': item.suggestedPrice,
+                                    'marketAvgPrice': item.marketAvgPrice,
                                     'imagePath': item.imagePath,
                                     'isOffline': false,
+                                    'timestamp': item.timestamp
+                                        .toIso8601String(),
+                                    'location': item.region,
                                   };
                                   Navigator.push(
                                     context,
