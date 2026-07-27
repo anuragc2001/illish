@@ -1020,7 +1020,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                           height: 30,
                         ), // Restores the bottom gap that SafeArea used to provide
                       ] else ...[
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 16),
                       ],
                     ],
                   ),

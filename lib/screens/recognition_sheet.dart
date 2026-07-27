@@ -7,27 +7,66 @@ import 'payment_sheet.dart';
 import '../config/app_config.dart';
 import 'widgets/banner_ad_widget.dart';
 
-class RecognitionSheet extends StatelessWidget {
+class RecognitionSheet extends StatefulWidget {
   final Map<String, dynamic> aiData;
-
   const RecognitionSheet({super.key, required this.aiData});
+
+  @override
+  State<RecognitionSheet> createState() => _RecognitionSheetState();
+}
+
+class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  bool _isUnlocking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _handleAction() async {
+    if (AppConfig.kIsPremiumUser) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ResultsScreen(aiData: widget.aiData),
+      ));
+      return;
+    }
+
+    setState(() => _isUnlocking = true);
+    await Future.delayed(const Duration(milliseconds: 400));
+    
+    if (!mounted) return;
+    Navigator.pop(context);
+    Navigator.push(context, PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: widget.aiData),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(0.0, 1.0);
+        const end = Offset.zero;
+        const curve = Curves.easeOutCubic;
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        return SlideTransition(position: animation.drive(tween), child: child);
+      },
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onVerticalDragEnd: (details) {
         if (details.primaryVelocity != null && details.primaryVelocity! < -300) {
-          Navigator.pop(context);
-          Navigator.push(context, PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: aiData),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.easeOutCubic;
-              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              return SlideTransition(position: animation.drive(tween), child: child);
-            },
-          ));
+          _handleAction();
         }
       },
       child: Stack(
@@ -60,12 +99,12 @@ class RecognitionSheet extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(flex: 3),
-                Icon(aiData['error'] == true ? Icons.error_outline : Icons.blur_on, color: aiData['error'] == true ? Colors.redAccent.withOpacity(0.8) : AppTheme.neonCyan.withOpacity(0.8), size: 28),
+                Icon(widget.aiData['error'] == true ? Icons.error_outline : Icons.blur_on, color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.8) : AppTheme.neonCyan.withOpacity(0.8), size: 28),
                 const SizedBox(height: 4),
                 Text(
-                  aiData['error'] == true ? 'SCAN FAILED' : 'SCAN COMPLETE',
+                  widget.aiData['error'] == true ? 'SCAN FAILED' : 'SCAN COMPLETE',
                   style: GoogleFonts.inter(
-                    color: aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
+                    color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                     letterSpacing: 2,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -76,7 +115,7 @@ class RecognitionSheet extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
-                    aiData['error'] == true ? 'NETWORK ERROR' : (aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
+                    widget.aiData['error'] == true ? 'NETWORK ERROR' : (widget.aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
                     style: GoogleFonts.inter(
                       fontSize: 42,
                       height: 1.1,
@@ -91,19 +130,19 @@ class RecognitionSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: aiData['error'] == true ? Colors.redAccent.withOpacity(0.1) : AppTheme.neonCyan.withOpacity(0.1),
+                    color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.1) : AppTheme.neonCyan.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: aiData['error'] == true ? Colors.redAccent.withOpacity(0.3) : AppTheme.neonCyan.withOpacity(0.3)),
+                    border: Border.all(color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.3) : AppTheme.neonCyan.withOpacity(0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(aiData['error'] == true ? Icons.warning_amber : Icons.location_on, color: aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan, size: 14),
+                      Icon(widget.aiData['error'] == true ? Icons.warning_amber : Icons.location_on, color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        aiData['error'] == true ? (aiData['errorType'] == 'offline' ? 'Offline' : 'High Latency') : (aiData['localName'] ?? 'Unknown'),
+                        widget.aiData['error'] == true ? (widget.aiData['errorType'] == 'offline' ? 'Offline' : 'High Latency') : (widget.aiData['localName'] ?? 'Unknown'),
                         style: GoogleFonts.inter(
-                          color: aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
+                          color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
@@ -115,19 +154,7 @@ class RecognitionSheet extends StatelessWidget {
                 const SizedBox(height: 32),
                   
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: aiData),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          const begin = Offset(0.0, 1.0);
-                          const end = Offset.zero;
-                          const curve = Curves.easeOutCubic;
-                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                          return SlideTransition(position: animation.drive(tween), child: child);
-                        },
-                      ));
-                    },
+                    onTap: _handleAction,
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 40),
                       decoration: BoxDecoration(
@@ -167,14 +194,51 @@ class RecognitionSheet extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppTheme.neonCyan, width: 1.5),
+                            if (AppConfig.kIsPremiumUser)
+                              AnimatedBuilder(
+                                animation: _animController,
+                                builder: (context, child) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.greenAccent.withOpacity(0.15),
+                                      border: Border.all(
+                                        color: Colors.greenAccent.withOpacity(0.4 + 0.6 * _animController.value),
+                                        width: 1.5
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.greenAccent.withOpacity(0.3 * _animController.value),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.check, color: Colors.greenAccent, size: 14),
+                                  );
+                                },
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppTheme.neonCyan, width: 1.5),
+                                ),
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  transitionBuilder: (Widget child, Animation<double> animation) {
+                                    return ScaleTransition(scale: animation, child: child);
+                                  },
+                                  child: Icon(
+                                    _isUnlocking ? Icons.lock_open : Icons.lock_outline,
+                                    key: ValueKey<bool>(_isUnlocking),
+                                    color: AppTheme.neonCyan,
+                                    size: 14,
+                                  ),
+                                ),
                               ),
-                              child: const Icon(Icons.lock_outline, color: AppTheme.neonCyan, size: 14),
-                            ),
                           ],
                         ),
                       ),

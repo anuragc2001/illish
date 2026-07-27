@@ -63,21 +63,25 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       return Container(
         width: widget.size.width.toDouble(),
         height: widget.size.height.toDouble(),
+        /*
         decoration: BoxDecoration(
           border: Border.all(color: AppTheme.neonCyan.withOpacity(0.3), width: 1),
           borderRadius: BorderRadius.circular(4),
         ),
+        */
       ); // Keep space while loading to prevent UI jump
     }
 
     return Container(
       width: widget.size.width.toDouble(),
       height: widget.size.height.toDouble(),
+      /*
       decoration: BoxDecoration(
         border: Border.all(color: AppTheme.neonCyan.withOpacity(0.6), width: 1),
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.hardEdge,
+      */
       child: _adWidget,
     );
   }
