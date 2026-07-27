@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme.dart';
 import 'screens/camera_screen.dart';
 import 'services/db_service.dart';
+import 'services/admob_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -27,6 +28,7 @@ void main() async {
     debugPrint("Warning: Could not load .env file: $e");
   }
   await DBService.initialize();
+  await AdMobService.initialize();
 
   try {
     cameras = await availableCameras();

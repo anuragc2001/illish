@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import 'results_screen.dart';
 import 'payment_sheet.dart';
+import '../config/app_config.dart';
+import 'widgets/banner_ad_widget.dart';
 
 class RecognitionSheet extends StatelessWidget {
   final Map<String, dynamic> aiData;
@@ -172,12 +174,14 @@ class RecognitionSheet extends StatelessWidget {
                                 border: Border.all(color: AppTheme.neonCyan, width: 1.5),
                               ),
                               child: const Icon(Icons.lock_outline, color: AppTheme.neonCyan, size: 14),
-                            )
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ),
+
+
                   const Spacer(flex: 2),
                   
                   // Bottom Swipe Area
@@ -190,7 +194,12 @@ class RecognitionSheet extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 80),
+                  if (!AppConfig.kIsPremiumUser)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16.0),
+                      child: BannerAdWidget(),
+                    ),
+                  const SizedBox(height: 50),
                 ],
               ),
             Positioned(

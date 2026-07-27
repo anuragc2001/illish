@@ -8,4 +8,7 @@ class AppConfig {
 
   // Feature flag to quickly enable/disable the UPI payment trigger UI
   static const bool kEnableUpiPayments = true;
+
+  // Whether the user has premium access
+  static const bool kIsPremiumUser = false;
 }

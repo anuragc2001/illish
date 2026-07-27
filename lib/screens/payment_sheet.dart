@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import 'results_screen.dart';
+import '../services/admob_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -107,6 +108,41 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              AdMobService.showInterstitialAd(onAdDismissed: () {
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          ResultsScreen(aiData: widget.aiData),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeOutCubic;
+                        var tween = Tween(begin: begin, end: end)
+                            .chain(CurveTween(curve: curve));
+                        return SlideTransition(
+                            position: animation.drive(tween), child: child);
+                      },
+                    ),
+                  );
+                }
+              });
+            },
+            child: Text(
+              'Skip',
+              style: GoogleFonts.inter(
+                color: Colors.white54,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: FadeTransition(
