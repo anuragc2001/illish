@@ -32,7 +32,7 @@ class AIService {
   ) async {
     if (AppConfig.kMockMode) {
       await Future.delayed(const Duration(seconds: 1)); // simulate latency
-
+      
       _mockCycle++;
       double testScore;
       if (_mockCycle % 3 == 1) {
@@ -99,11 +99,7 @@ class AIService {
     try {
       final response = await _provider
           .analyzeFish(imagePath, location)
-          .timeout(const Duration(seconds: 25));
-      
-      // Inject location into response for downstream usage
-      response['location'] = location;
-      
+          .timeout(const Duration(seconds: 15));
       return response;
     } on TimeoutException catch (_) {
       return {

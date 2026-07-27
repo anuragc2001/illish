@@ -58,7 +58,19 @@ Replace the basic `CircularProgressIndicator` full-screen dialog with an ultra-s
 When pushing new screens (like the `ResultsScreen`), the camera feed currently continues streaming frames beneath the new route. While the OS backgrounding is handled, navigating within the app leaves the camera running.
 
 ### Technical Approach
-- Safely pause `CameraController` image streams upon route push, and resume them on pop, without causing black screens or initialization race conditions during transition animations.
+- Pause `CameraController` on `push()` and resume on `pop()`.
+
+---
+
+## 6. Full Automatic UPI Return Handshake (Android Intent Contract)
+
+### Concept
+Currently, clicking "Pay Vendor" launches the selected payment app's launcher activity directly, so the user manually switches back to Illish after paying the vendor. 
+
+In a future release, if we want an automatic auto-redirect back into Illish right after payment completion:
+- Re-introduce the `upi://pay` deep link intent.
+- Pass a dynamic transaction payload (`pa`, `pn`, `am`, `tn`, `tr`).
+- Parse `onActivityResult` on Android to receive explicit transaction confirmation status (`SUCCESS`, `FAILURE`, `SUBMITTED`) and automatically auto-pop back to Illish.ute push, and resume them on pop, without causing black screens or initialization race conditions during transition animations.
 
 ---
 

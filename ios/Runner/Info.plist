@@ -81,6 +81,11 @@
     <key>LSApplicationQueriesSchemes</key>
     <array>
       <string>youtube</string>
+      <string>gpay</string>
+      <string>phonepe</string>
+      <string>paytm</string>
+      <string>credpay</string>
+      <string>bhim</string>
     </array>
   </dict>
 </plist>

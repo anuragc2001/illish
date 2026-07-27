@@ -9,6 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/theme.dart';
 import '../services/db_service.dart';
 import '../config/app_config.dart';
+import 'widgets/upi_picker_sheet.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -847,6 +848,43 @@ class _ResultsScreenState extends State<ResultsScreen>
                         priceExplanation,
                         marketAvgExplanation,
                       ),
+                      const SizedBox(height: 16),
+                      if (AppConfig.kEnableUpiPayments)
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.neonCyan.withOpacity(0.35),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                                offset: const Offset(0, 0), // Centered glow
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: () => UpiPickerSheet.show(context),
+                            icon: const Icon(Icons.qr_code_scanner, size: 20),
+                            label: Text(
+                              "Pay Vendor",
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: AppTheme.background,
+                              backgroundColor: AppTheme.neonCyan,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0, // removed elevation since Container has shadow
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 24),
                     ],
 
