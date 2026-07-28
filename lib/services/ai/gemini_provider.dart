@@ -50,7 +50,14 @@ class GeminiProvider implements AIProvider {
 Analyze this image of a fish found in $location. 
 $timeContext
 
-Return a raw JSON object (no markdown, no backticks) with exactly this structure:
+IMPORTANT INSTRUCTION: If the image is NOT of a fish/aquatic life, or is too blurry to identify, return EXACTLY this JSON:
+{
+  "error": true,
+  "errorType": "invalid_image",
+  "errorReason": "The image doesn't appear to be aquatic life or is too blurry. Please make sure the subject is clear and centered."
+}
+
+Otherwise, if it is a valid fish image, return a raw JSON object (no markdown, no backticks) with exactly this structure:
 {
   "englishName": "Common english name",
   "localName": "Regional name based on $location (include native script if applicable)",

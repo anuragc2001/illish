@@ -6,6 +6,7 @@ import 'results_screen.dart';
 import 'payment_sheet.dart';
 import '../config/app_config.dart';
 import 'widgets/banner_ad_widget.dart';
+import '../services/admob_service.dart';
 
 class RecognitionSheet extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -65,7 +66,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
   Widget build(BuildContext context) {
     return GestureDetector(
       onVerticalDragEnd: (details) {
-        if (details.primaryVelocity != null && details.primaryVelocity! < -300) {
+        if (widget.aiData['error'] != true && details.primaryVelocity != null && details.primaryVelocity! < -300) {
           _handleAction();
         }
       },
@@ -99,10 +100,22 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(flex: 3),
-                Icon(widget.aiData['error'] == true ? Icons.error_outline : Icons.blur_on, color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.8) : AppTheme.neonCyan.withOpacity(0.8), size: 28),
+                Icon(
+                  widget.aiData['error'] == true 
+                      ? (widget.aiData['errorType'] == 'invalid_image' 
+                          ? Icons.image_not_supported 
+                          : (widget.aiData['errorType'] == 'offline' ? Icons.wifi_off : Icons.error_outline)) 
+                      : Icons.blur_on, 
+                  color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.8) : AppTheme.neonCyan.withOpacity(0.8), 
+                  size: 28
+                ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.aiData['error'] == true ? 'SCAN FAILED' : 'SCAN COMPLETE',
+                  widget.aiData['error'] == true 
+                      ? (widget.aiData['errorType'] == 'invalid_image' 
+                          ? 'INVALID IMAGE' 
+                          : (widget.aiData['errorType'] == 'offline' ? 'OFFLINE' : 'SCAN FAILED')) 
+                      : 'SCAN COMPLETE',
                   style: GoogleFonts.inter(
                     color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                     letterSpacing: 2,
@@ -115,7 +128,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
-                    widget.aiData['error'] == true ? 'NETWORK ERROR' : (widget.aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
+                    widget.aiData['error'] == true ? (widget.aiData['errorType'] == 'invalid_image' ? 'NOT AQUATIC LIFE' : 'NETWORK ERROR') : (widget.aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
                     style: GoogleFonts.inter(
                       fontSize: 42,
                       height: 1.1,
@@ -140,7 +153,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                       Icon(widget.aiData['error'] == true ? Icons.warning_amber : Icons.location_on, color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        widget.aiData['error'] == true ? (widget.aiData['errorType'] == 'offline' ? 'Offline' : 'High Latency') : (widget.aiData['localName'] ?? 'Unknown'),
+                        widget.aiData['error'] == true ? (widget.aiData['errorType'] == 'offline' ? 'Offline' : (widget.aiData['errorType'] == 'invalid_image' ? 'Try Again' : 'High Latency')) : (widget.aiData['localName'] ?? 'Unknown'),
                         style: GoogleFonts.inter(
                           color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                           fontWeight: FontWeight.w600,
@@ -153,8 +166,22 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                 
                 const SizedBox(height: 32),
                   
-                  GestureDetector(
-                    onTap: _handleAction,
+                  if (widget.aiData['error'] == true)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        widget.aiData['errorType'] == 'invalid_image' 
+                            ? (widget.aiData['errorReason'] ?? 'The image doesn\'t appear to be aquatic life. Please make sure the subject is clear.')
+                            : (widget.aiData['errorType'] == 'offline' 
+                                ? 'No internet connection. Please check your network and try again.' 
+                                : 'The server took too long to respond. Please try again.'),
+                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 14, height: 1.4),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: _handleAction,
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 40),
                       decoration: BoxDecoration(
@@ -248,16 +275,18 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
 
                   const Spacer(flex: 2),
                   
-                  // Bottom Swipe Area
-                  const Icon(Icons.keyboard_double_arrow_up, color: Colors.white54),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Swipe up for cuts & recipes',
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 12,
+                  if (widget.aiData['error'] != true) ...[
+                    // Bottom Swipe Area
+                    const Icon(Icons.keyboard_double_arrow_up, color: Colors.white54),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Swipe up for cuts & recipes',
+                      style: GoogleFonts.inter(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
+                  ],
                   if (!AppConfig.kIsPremiumUser)
                     const Padding(
                       padding: EdgeInsets.only(top: 16.0),
@@ -283,7 +312,13 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        if (widget.aiData['error'] == true) {
+                          Navigator.pop(context);
+                        } else {
+                          AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
+                        }
+                      },
                     ),
                   ),
                   Container(

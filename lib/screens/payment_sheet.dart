@@ -99,53 +99,55 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF090B0F),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          TextButton(
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: const Color(0xFF090B0F),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
             onPressed: () {
-              AdMobService.showInterstitialAd(onAdDismissed: () {
-                if (context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) =>
-                          ResultsScreen(aiData: widget.aiData),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        const begin = Offset(0.0, 1.0);
-                        const end = Offset.zero;
-                        const curve = Curves.easeOutCubic;
-                        var tween = Tween(begin: begin, end: end)
-                            .chain(CurveTween(curve: curve));
-                        return SlideTransition(
-                            position: animation.drive(tween), child: child);
-                      },
-                    ),
-                  );
-                }
-              });
+              AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
             },
-            child: Text(
-              'Skip',
-              style: GoogleFonts.inter(
-                color: Colors.white54,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                AdMobService.showInterstitialAd(onAdDismissed: () {
+                  if (context.mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            ResultsScreen(aiData: widget.aiData),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          const begin = Offset(0.0, 1.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeOutCubic;
+                          var tween = Tween(begin: begin, end: end)
+                              .chain(CurveTween(curve: curve));
+                          return SlideTransition(
+                              position: animation.drive(tween), child: child);
+                        },
+                      ),
+                    );
+                  }
+                });
+              },
+              child: Text(
+                'Skip',
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        child: FadeTransition(
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
