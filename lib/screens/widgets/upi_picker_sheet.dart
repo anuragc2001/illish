@@ -8,24 +8,13 @@ class UpiPickerSheet extends StatefulWidget {
   const UpiPickerSheet({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showGeneralDialog<void>(
+    return showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.transparent, // Handled by BackdropFilter
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return const UpiPickerSheet();
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-          child: child,
-        );
-      },
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: false,
+      barrierColor: Colors.black.withOpacity(0.85), // Very dark barrier completely hides the distracting ad
+      builder: (context) => const UpiPickerSheet(),
     );
   }
 
@@ -72,28 +61,29 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    final sheetHeight = MediaQuery.sizeOf(context).height * 0.46;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.paddingOf(context).bottom + 24,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E).withOpacity(0.85),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        child: Container(
+          width: double.infinity,
+          height: sheetHeight,
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: MediaQuery.paddingOf(context).bottom + 16,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1E).withOpacity(0.85),
+            border: Border(
+              top: BorderSide(color: Colors.white.withOpacity(0.1)),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Container(
                 width: 40,
@@ -103,7 +93,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
                 'Open Payment App',
                 style: GoogleFonts.inter(
@@ -112,7 +102,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Scan the vendor\'s QR code to pay',
                 style: GoogleFonts.inter(
@@ -123,9 +113,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
               const SizedBox(height: 24),
               _buildContent(),
             ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -165,85 +153,97 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 0.8,
-      ),
-      itemCount: _apps!.length,
-      itemBuilder: (context, index) {
-        final app = _apps![index];
-        final isSelected = _selectedApp == app;
-
-        return GestureDetector(
-          onTap: () => _handleAppTap(app),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _apps!.map((app) {
+                final isSelected = _selectedApp == app;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: GestureDetector(
+                    onTap: () => _handleAppTap(app),
+                    child: AnimatedContainer(
+                      width: 76,
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                      duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          )
-                        ],
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: _buildAppIcon(app),
-                    ),
-                    if (_isLaunching && isSelected)
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _buildAppIcon(app),
+                              ),
+                              if (_isLaunching && isSelected)
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: 72,
+                            child: Text(
+                              app.name,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                                height: 1.2,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  app.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
+                );
+              }).toList(),
             ),
           ),
         );

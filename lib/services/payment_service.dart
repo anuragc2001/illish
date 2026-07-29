@@ -8,10 +8,11 @@ class PaymentService {
 
   static final List<UpiApp> _iosSupportedApps = [
     UpiApp(name: 'Google Pay', packageName: 'gpay', assetIcon: 'assets/icons/upi/gpay.png'),
-    UpiApp(name: 'PhonePe', packageName: 'phonepe', assetIcon: 'assets/icons/upi/phonepe.png'),
+    UpiApp(name: 'PhonePe', packageName: 'phonepe', assetIcon: 'assets/icons/upi/phonepe.jpeg'),
     UpiApp(name: 'Paytm', packageName: 'paytm', assetIcon: 'assets/icons/upi/paytm.png'),
-    UpiApp(name: 'CRED', packageName: 'credpay', assetIcon: 'assets/icons/upi/cred.png'),
-    UpiApp(name: 'BHIM', packageName: 'bhim', assetIcon: 'assets/icons/upi/bhim.png'),
+    UpiApp(name: 'Amazon Pay', packageName: 'amazonpay', assetIcon: 'assets/icons/upi/amazonpay.png'),
+    UpiApp(name: 'CRED', packageName: 'credpay', assetIcon: 'assets/icons/upi/cred.jpeg'),
+    UpiApp(name: 'BHIM', packageName: 'bhim', assetIcon: 'assets/icons/upi/bhim.jpg'),
   ];
 
   static Future<List<UpiApp>> getAvailableUpiApps() async {
@@ -50,7 +51,7 @@ class PaymentService {
       }
     } else if (Platform.isIOS) {
       // For iOS, just launch the scheme to open the app (e.g. gpay://)
-      final Uri appUri = Uri(scheme: app.packageName, host: 'pay');
+      final Uri appUri = Uri(scheme: app.packageName);
       
       try {
         if (await canLaunchUrl(appUri)) {

@@ -511,10 +511,32 @@ class _ResultsScreenState extends State<ResultsScreen>
                             child: IconButton(
                               icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
                               onPressed: () {
-                                showDialog(
+                                showGeneralDialog(
                                   context: context,
-                                  useSafeArea: false, // Ensures full screen blur coverage
-                                  builder: (context) => ShareCardPreview(aiData: widget.aiData),
+                                  barrierDismissible: true,
+                                  barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+                                  barrierColor: Colors.black.withOpacity(0.5),
+                                  transitionDuration: const Duration(milliseconds: 300),
+                                  pageBuilder: (context, animation, secondaryAnimation) {
+                                    return ShareCardPreview(aiData: widget.aiData);
+                                  },
+                                  transitionBuilder: (context, animation, secondaryAnimation, child) {
+                                    return FadeTransition(
+                                      opacity: CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeOut,
+                                      ),
+                                      child: ScaleTransition(
+                                        scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeOutBack,
+                                          ),
+                                        ),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
                                 );
                               },
                             ),

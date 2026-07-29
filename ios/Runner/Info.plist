@@ -82,6 +82,7 @@
     <string>Needed to save scanned fish images to your gallery.</string>
     <key>LSApplicationQueriesSchemes</key>
     <array>
+      <string>amazonpay</string>
       <string>youtube</string>
       <string>gpay</string>
       <string>phonepe</string>
