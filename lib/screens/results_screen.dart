@@ -12,6 +12,7 @@ import '../config/app_config.dart';
 import 'widgets/upi_picker_sheet.dart';
 import '../services/admob_service.dart';
 import 'widgets/banner_ad_widget.dart';
+import 'widgets/share_card_preview.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -435,6 +436,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                       // Custom Scrolling Header
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
                             decoration: BoxDecoration(
@@ -507,89 +509,19 @@ class _ResultsScreenState extends State<ResultsScreen>
                               ),
                             ),
                             child: IconButton(
-                              icon: Icon(
-                                _isBookmarked
-                                    ? Icons.bookmark
-                                    : Icons.bookmark_border,
-                                color: _isBookmarked
-                                    ? AppTheme.neonCyan
-                                    : Colors.white,
-                              ),
-                              onPressed: () async {
-                                final imagePath =
-                                    widget.aiData['imagePath'] as String?;
-                                if (_isBookmarked) {
-                                  setState(() => _isBookmarked = false);
-                                  ScaffoldMessenger.of(
-                                    context,
-                                  ).clearSnackBars();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.info_outline,
-                                            color: Colors.black,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Removed from Bookmarks',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: AppTheme.neonCyan,
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: const Duration(
-                                        milliseconds: 1500,
-                                      ),
-                                    ),
-                                  );
-                                  await DBService.removeBookmark(imagePath);
-                                } else {
-                                  setState(() => _isBookmarked = true);
-                                  ScaffoldMessenger.of(
-                                    context,
-                                  ).clearSnackBars();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.check_circle,
-                                            color: Colors.black,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Added to Bookmarks',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: AppTheme.neonCyan,
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: const Duration(
-                                        milliseconds: 1500,
-                                      ),
-                                    ),
-                                  );
-                                  await DBService.saveScan(
-                                    widget.aiData,
-                                    isBookmark: true,
-                                  );
-                                }
+                              icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  useSafeArea: false, // Ensures full screen blur coverage
+                                  builder: (context) => ShareCardPreview(aiData: widget.aiData),
+                                );
                               },
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
 
                       // Gauge Area
                       Center(
@@ -741,38 +673,108 @@ class _ResultsScreenState extends State<ResultsScreen>
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisSize: MainAxisSize.max,
                               children: [
-                                AnimatedBuilder(
-                                  animation: _shimmerController,
-                                  builder: (context, child) {
-                                    return Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: ringColor,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: ringColor.withOpacity(
-                                              _shimmerAnimation.value,
-                                            ),
-                                            blurRadius: 4,
-                                            spreadRadius: 1,
+                                const Spacer(),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedBuilder(
+                                      animation: _shimmerController,
+                                      builder: (context, child) {
+                                        return Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: ringColor,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: ringColor.withOpacity(
+                                                  _shimmerAnimation.value,
+                                                ),
+                                                blurRadius: 4,
+                                                spreadRadius: 1,
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      statusWord.toUpperCase(),
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        letterSpacing: 1.5,
                                       ),
-                                    );
-                                  },
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  statusWord.toUpperCase(),
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    letterSpacing: 1.5,
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                          onTap: () async {
+                                            final imagePath = widget.aiData['imagePath'] as String?;
+                                            if (_isBookmarked) {
+                                              setState(() => _isBookmarked = false);
+                                              ScaffoldMessenger.of(context).clearSnackBars();
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.info_outline, color: Colors.black),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Removed from Bookmarks',
+                                                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: AppTheme.neonCyan,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  duration: const Duration(milliseconds: 1500),
+                                                ),
+                                              );
+                                              await DBService.removeBookmark(imagePath);
+                                            } else {
+                                              setState(() => _isBookmarked = true);
+                                              ScaffoldMessenger.of(context).clearSnackBars();
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.check_circle, color: Colors.black),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Added to Bookmarks',
+                                                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: AppTheme.neonCyan,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  duration: const Duration(milliseconds: 1500),
+                                                ),
+                                              );
+                                              await DBService.saveScan(widget.aiData, isBookmark: true);
+                                            }
+                                          },
+                                          child: Icon(
+                                            _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                            color: _isBookmarked ? AppTheme.neonCyan : Colors.white54,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],

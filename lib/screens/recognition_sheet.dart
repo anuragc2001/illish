@@ -300,52 +300,22 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                   ? MediaQuery.paddingOf(context).top 
                   : 47.0) + 16.0,
               left: 24,
-              right: 24,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24, width: 1),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                      onPressed: () {
-                        if (widget.aiData['error'] == true) {
-                          Navigator.pop(context);
-                        } else {
-                          AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
-                        }
-                      },
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24, width: 1),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Freshness report link copied to clipboard!',
-                              style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
-                            ),
-                            backgroundColor: AppTheme.neonCyan,
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(milliseconds: 1500),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                  onPressed: () {
+                    if (widget.aiData['error'] == true) {
+                      Navigator.pop(context);
+                    } else {
+                      AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
+                    }
+                  },
+                ),
               ),
             ),
           ],

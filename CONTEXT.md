@@ -108,6 +108,17 @@ During the initial build phase, several advanced features and UX refinements wer
 - **Build Flavors**: Configured `prod` and `exp` build environments via `flutter_flavorizr` to support experimental features and stable releases.
 - **UI Optimizations**: Replaced fade transitions with sleek slide animations for the recognition sheet. Addressed touch responsiveness ("ghost touches") using `HitTestBehavior.opaque` on `GestureDetector`s, and removed expensive 60fps blur masks on custom painters to fix rendering jank.
 
+## Implemented Features (v2.0 Journey)
+Building on the v1.0 foundation, v2.0 focused on monetization, native payments, polished UI refinements, and production readiness:
+- **Google AdMob Integration**: Full ad monetization pipeline with Banner Ads on the Results screen and Interstitial Ads triggered every 3rd back-button press. Premium users (`kIsPremiumUser`) bypass all ad logic. Ad Unit IDs are loaded from `.env` via `flutter_dotenv` with Google test IDs as safe fallbacks.
+- **Production AdMob Configuration**: Real AdMob App IDs registered in both `AndroidManifest.xml` (`ca-app-pub-9112636709355929~3112314261`) and `ios/Runner/Info.plist` (`ca-app-pub-9112636709355929~9641109305`). All 4 production Ad Unit IDs (Banner + Interstitial × Android + iOS) configured in `.env`.
+- **UPI Payment System**: Native Android UPI app discovery via Kotlin `MethodChannel` that queries `upi://pay` intents and extracts app icons as byte arrays. iOS fallback uses URL scheme detection for GPay, PhonePe, Paytm, CRED, and BHIM. A dedicated `UpiPickerSheet` widget renders discovered apps in a sleek grid with native icons.
+- **Environment-Driven Configuration**: All API keys (Gemini, YouTube, AdMob) moved to `.env` file loaded at startup via `flutter_dotenv`. Developer/test keys are preserved as comments with `_DEV` suffix for easy switching during local development. `.env` is excluded via `.gitignore`.
+- **Results Screen UI Polish**: Header buttons (Back, Share) precisely matched to RecognitionSheet sizing with identical `BoxConstraints` and icon dimensions. Status text ("Excellent") perfectly centered using weighted `Row` with `Expanded` spacers. Bookmark icon repositioned near status text with full color-state logic preserved.
+- **Share Card Preview (WIP)**: Multi-variant share card dialog with `RepaintBoundary` screenshot capture, `share_plus` for native OS share sheet, and `gal` for gallery saving. UI aesthetic is still being iterated (Trading Card / Sci-Fi concept under review).
+- **Cancelable AI Operations**: AI scan requests are wrapped in `CancelableOperation` from `package:async`, allowing users to abort in-flight Gemini API calls and immediately retake photos.
+- **Comprehensive Error Handling**: Mock mode now cycles through 6 distinct states (3 freshness tiers + invalid image + offline + timeout) for thorough UI testing. Online mode handles `TimeoutException`, `SocketException`, and generic API errors with distinct user-facing messages.
+
 ## Design System & Vibe
 
 **Theme:** Pure dark mode, true black background `#000000`.

@@ -472,6 +472,7 @@ class _CameraScreenState extends State<CameraScreen>
       await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
+        useSafeArea: false, // Prevents black gaps
         backgroundColor: Colors.transparent,
         builder: (context) => RecognitionSheet(aiData: result),
       );
@@ -483,7 +484,7 @@ class _CameraScreenState extends State<CameraScreen>
     // We'll pass the context to a stateful widget to handle tabs
     showModalBottomSheet(
       context: context,
-      useSafeArea: true,
+      useSafeArea: false, // Prevents black gaps
       backgroundColor: AppTheme.cardBackground,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -665,6 +666,7 @@ class _CameraScreenState extends State<CameraScreen>
                               onTap: () {
                                 showModalBottomSheet(
                                   context: context,
+                                  useSafeArea: false, // Prevents black gaps
                                   isScrollControlled: true,
                                   backgroundColor: AppTheme.cardBackground,
                                   shape: const RoundedRectangleBorder(
