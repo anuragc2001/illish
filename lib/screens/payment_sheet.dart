@@ -99,8 +99,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFF090B0F),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -311,11 +310,10 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                               color: Colors.white54, fontSize: 12)),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 60),
                 ],
               ),
             ),
-          ),
         ),
       ),
     );
