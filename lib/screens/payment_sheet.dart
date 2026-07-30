@@ -150,8 +150,10 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -239,7 +241,8 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                   _buildFeatureRow(Icons.restaurant, "Cuts, recipes & more",
                       "Expert curated"),
 
-                  const Spacer(),
+                  // Guaranteed mathematical gap replacing Spacer() so it never overlaps
+                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.04),
 
                   // Pay Button with Glow
                   GestureDetector(
@@ -314,6 +317,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                 ],
               ),
             ),
+          ),
         ),
       ),
     );
