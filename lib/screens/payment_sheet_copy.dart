@@ -306,17 +306,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                               color: Colors.white54, fontSize: 12)),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildAvatarPile(),
-                      const SizedBox(width: 12),
-                      Text("Trusted by 50K+ fish lovers",
-                          style: GoogleFonts.inter(
-                              color: Colors.white54, fontSize: 12)),
-                    ],
-                  ),
+
                   SizedBox(height: MediaQuery.paddingOf(context).bottom + 10),
                 ],
               ),
@@ -459,35 +449,5 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildAvatarPile() {
-    return SizedBox(
-      width: 60,
-      height: 24,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            child: CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey[800],
-                child: const Icon(Icons.person, size: 14, color: Colors.white)),
-          ),
-          Positioned(
-            left: 16,
-            child: CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey[700],
-                child: const Icon(Icons.person, size: 14, color: Colors.white)),
-          ),
-          Positioned(
-            left: 32,
-            child: CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey[600],
-                child: const Icon(Icons.person, size: 14, color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+
 }
