@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import 'results_screen.dart';
+import '../services/admob_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -99,188 +100,227 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090B0F),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: FadeTransition(
+        backgroundColor: const Color(0xFF090B0F),
+        body: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 10),
-
-                  // Shield Icon with glow
-                  ScaleTransition(
-                    scale: _pulseAnimation,
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.neonCyan.withOpacity(0.15),
-                            blurRadius: 30,
-                            spreadRadius: 10,
-                          )
-                        ],
-                      ),
-                      child: const Icon(Icons.shield_outlined,
-                          color: AppTheme.neonCyan, size: 56),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Headlines
-                  Text(
-                    "Don't buy stale fish.",
-                    style: GoogleFonts.inter(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Unlock the AI Freshness\nScanner for the weekend.",
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: Colors.white70,
-                      height: 1.4,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Price
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0, right: 4.0),
-                        child: Text(
-                          "₹",
-                          style: GoogleFonts.inter(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        "19",
-                        style: GoogleFonts.inter(
-                          fontSize: 72,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Features List
-                  _buildFeatureRow(Icons.all_inclusive, "Unlimited scans",
-                      "All weekend"),
-                  const SizedBox(height: 24),
-                  _buildFeatureRow(Icons.auto_awesome, "AI freshness score",
-                      "With evidence"),
-                  const SizedBox(height: 16),
-                  _buildFeatureRow(Icons.restaurant, "Cuts, recipes & more",
-                      "Expert curated"),
-
-                  const Spacer(),
-
-                  // Pay Button with Glow
-                  GestureDetector(
-                    onTap: () => _launchUPI(context),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.neonCyan,
-                        borderRadius: BorderRadius.circular(100),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.neonCyan.withOpacity(0.4),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Custom Header replacing AppBar
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8, right: 16, top: 12),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "Pay with UPI",
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black,
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                            onPressed: () {
+                              AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
+                            },
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              AdMobService.showInterstitialAd(onAdDismissed: () {
+                                if (context.mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    PageRouteBuilder(
+                                      pageBuilder: (context, animation, secondaryAnimation) =>
+                                          ResultsScreen(aiData: widget.aiData),
+                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        const begin = Offset(0.0, 1.0);
+                                        const end = Offset.zero;
+                                        const curve = Curves.easeOutCubic;
+                                        var tween = Tween(begin: begin, end: end)
+                                            .chain(CurveTween(curve: curve));
+                                        return SlideTransition(
+                                            position: animation.drive(tween), child: child);
+                                      },
+                                    ),
+                                  );
+                                }
+                              });
+                            },
+                            child: Text(
+                              'Skip',
+                              style: GoogleFonts.inter(
+                                color: Colors.white54,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.double_arrow,
-                              color: Colors.black, size: 20),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
 
-                  const SizedBox(height: 16),
+                    // Main Content Body with its original 24px padding
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Shield Icon with glow
+                          ScaleTransition(
+                            scale: _pulseAnimation,
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.neonCyan.withOpacity(0.15),
+                                    blurRadius: 30,
+                                    spreadRadius: 10,
+                                  )
+                                ],
+                              ),
+                              child: const Icon(Icons.shield_outlined,
+                                  color: AppTheme.neonCyan, size: 56),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
 
-                  // Footer tags
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lock_outline,
-                          color: Colors.white54, size: 14),
-                      const SizedBox(width: 6),
-                      Text("Secure payment",
-                          style: GoogleFonts.inter(
-                              color: Colors.white54, fontSize: 12)),
-                      const SizedBox(width: 24),
-                      const Icon(Icons.check_circle_outline,
-                          color: Colors.white54, size: 14),
-                      const SizedBox(width: 6),
-                      Text("Cancel anytime",
-                          style: GoogleFonts.inter(
-                              color: Colors.white54, fontSize: 12)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildAvatarPile(),
-                      const SizedBox(width: 12),
-                      Text("Trusted by 50K+ fish lovers",
-                          style: GoogleFonts.inter(
-                              color: Colors.white54, fontSize: 12)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                          // Headlines
+                          Text(
+                            "Don't buy stale fish.",
+                            style: GoogleFonts.inter(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Unlock the AI Freshness\nScanner for the weekend.",
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              color: Colors.white70,
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Price
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0, right: 4.0),
+                                child: Text(
+                                  "₹",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                "19",
+                                style: GoogleFonts.inter(
+                                  fontSize: 72,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Features List
+                          _buildFeatureRow(Icons.all_inclusive, "Unlimited scans",
+                              "All weekend"),
+                          const SizedBox(height: 20),
+                          _buildFeatureRow(Icons.auto_awesome, "AI freshness score",
+                              "With evidence"),
+                          const SizedBox(height: 20),
+                          _buildFeatureRow(Icons.restaurant, "Cuts, recipes & more",
+                              "Expert curated"),
+
+                          // Guaranteed mathematical gap replacing Spacer() so it never overlaps
+                          SizedBox(height: MediaQuery.sizeOf(context).height * 0.04),
+
+                          // Pay Button with Glow
+                          GestureDetector(
+                            onTap: () => _launchUPI(context),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
+                                color: AppTheme.neonCyan,
+                                borderRadius: BorderRadius.circular(100),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.neonCyan.withOpacity(0.4),
+                                    blurRadius: 20,
+                                    spreadRadius: 2,
+                                    offset: const Offset(0, 4),
+                                  )
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Continue",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.double_arrow,
+                                      color: Colors.black, size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Footer tags
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.lock_outline,
+                                  color: Colors.white54, size: 14),
+                              const SizedBox(width: 6),
+                              Text("Secure payment",
+                                  style: GoogleFonts.inter(
+                                      color: Colors.white54, fontSize: 12)),
+                              const SizedBox(width: 24),
+                              const Icon(Icons.check_circle_outline,
+                                  color: Colors.white54, size: 14),
+                              const SizedBox(width: 6),
+                              Text("Cancel anytime",
+                                  style: GoogleFonts.inter(
+                                      color: Colors.white54, fontSize: 12)),
+                            ],
+                          ),
+
+                          const SizedBox(height: 60),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildFeatureRow(IconData icon, String title, String subtitle) {
@@ -319,35 +359,5 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildAvatarPile() {
-    return SizedBox(
-      width: 60,
-      height: 24,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            child: CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey[800],
-                child: const Icon(Icons.person, size: 14, color: Colors.white)),
-          ),
-          Positioned(
-            left: 16,
-            child: CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey[700],
-                child: const Icon(Icons.person, size: 14, color: Colors.white)),
-          ),
-          Positioned(
-            left: 32,
-            child: CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey[600],
-                child: const Icon(Icons.person, size: 14, color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+
 }

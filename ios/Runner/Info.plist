@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
+    <key>GADApplicationIdentifier</key>
+    <string>ca-app-pub-9112636709355929~9641109305</string>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
     <key>CFBundleDevelopmentRegion</key>
@@ -80,7 +82,13 @@
     <string>Needed to save scanned fish images to your gallery.</string>
     <key>LSApplicationQueriesSchemes</key>
     <array>
+      <string>amazonpay</string>
       <string>youtube</string>
+      <string>gpay</string>
+      <string>phonepe</string>
+      <string>paytm</string>
+      <string>credpay</string>
+      <string>bhim</string>
     </array>
   </dict>
 </plist>

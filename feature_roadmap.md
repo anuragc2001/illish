@@ -1,6 +1,8 @@
 # Illish — Feature Roadmap & Monetization Strategy
 
-Based on a deep review of [CONTEXT.md](file:///Users/anuragchakraborty/Code/ios%20Projects/illish/CONTEXT.md), [FUTURE_ENHANCEMENTS.md](file:///Users/anuragchakraborty/Code/ios%20Projects/illish/FUTURE_ENHANCEMENTS.md), and your full codebase.
+Based on a deep review of [CONTEXT.md](file:///Users/anuragchakraborty/Code/ios%20Projects/illish/CONTEXT.md), [FUTURE_ENHANCEMENTS.md](file:///Users/anuragchakraborty/Code/ios%20Projects/illish/FUTURE_ENHANCEMENTS.md), and the full codebase.
+
+> **Last Updated:** July 2026 (v2.0.0)
 
 ---
 
@@ -36,14 +38,43 @@ Based on a deep review of [CONTEXT.md](file:///Users/anuragchakraborty/Code/ios%
 ---
 
 #### 3. [COMPLETED] Price Intelligence ("Is this price fair?")
-**Status:** Completed and integrated into the AI Prompt and ResultsScreen UI.
-**Why it matters:** Your CONTEXT.md says the mission is to help users *"avoid being cheated on price"*. But the app currently has zero pricing data. This is the single biggest unbuilt feature from your original PRD.
+**Status:** ✅ Completed and integrated into the AI Prompt and ResultsScreen UI.
+**Why it matters:** Your CONTEXT.md says the mission is to help users *"avoid being cheated on price"*. This was the single biggest unbuilt feature from the original PRD.
 
 **What was built:**
 - After identifying a fish species + location, Gemini queries: *"What is the typical retail price range for [fish] in [city] in [month]?"*
 - Display a price range bar: ₹300-₹450/kg with the market average highlighted
-- Seasonal pricing context: *"Hilsa prices peak during monsoon (July-Aug)"*
+- Seasonal pricing context integrated via time-of-day, day-of-week, and season variables passed to the prompt
 - (Pending) Let users **report** the price they paid (crowdsource data over time)
+
+---
+
+#### 4. [COMPLETED] Google AdMob Monetization
+**Status:** ✅ Fully integrated with production IDs for both iOS and Android.
+
+**What was built:**
+- `AdMobService` with banner and interstitial ad support
+- Smart "every 3rd click" interstitial trigger on Results screen back button
+- `BannerAdWidget` reusable component
+- All Ad Unit IDs driven from `.env` via `flutter_dotenv`
+- Premium user bypass (`kIsPremiumUser`)
+- Production App IDs in `AndroidManifest.xml` and `Info.plist`
+- Developer test keys preserved as `_DEV` comments in `.env`
+
+---
+
+#### 5. [WIP] Share Card & Organic Growth Engine
+**Status:** 🔨 In Progress — UI aesthetic under review.
+
+**What was built so far:**
+- `RepaintBoundary` screenshot capture at 3x resolution
+- `share_plus` for native share sheet
+- `gal` for gallery saving
+- Multiple aesthetics prototyped (Instagram Story, Trading Card/RPG)
+
+**What needs to be done:**
+- Finalize the visual design
+- Add "Scanned with Illish" watermark + App Store deep link
 
 ---
 
@@ -226,10 +257,13 @@ These require minimal code changes but significantly improve the app:
 
 ## Recommended Priority Order
 
-1. **Image compression** (quick win, huge UX impact at markets)
-2. **Share scan cards** (organic growth engine)
-3. **Real-time fish detection** (core differentiator)
-4. **Price intelligence** (fulfills original PRD promise)
-5. **Freemium paywall** (revenue)
-6. **Multi-fish stall scan** (premium feature)
-7. **Architecture refactor** (enables everything else faster)
+1. **Set `kMockMode = false`** (critical for any real testing or release)
+2. **Image compression** (quick win, huge UX impact at markets)
+3. **Finalize Share Card UI** (organic growth engine)
+4. **Haptic feedback** (quick win, feels premium)
+5. **Onboarding carousel** (quick win, reduces first-use confusion)
+6. **Real-time fish detection** (core differentiator)
+7. **Freemium paywall** (revenue scaling)
+8. **Multi-fish stall scan** (premium feature)
+9. **Architecture refactor** (enables everything else faster)
+10. **Scan history timeline** (habit loop / engagement)

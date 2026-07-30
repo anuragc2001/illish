@@ -32,12 +32,36 @@ class AIService {
   ) async {
     if (AppConfig.kMockMode) {
       await Future.delayed(const Duration(seconds: 1)); // simulate latency
-
+      
       _mockCycle++;
+      
+      // Cycle 4: Invalid Image
+      if (_mockCycle % 6 == 4) {
+        return {
+          "error": true,
+          "errorType": "invalid_image",
+          "errorReason": "The image doesn't appear to be aquatic life or is too blurry. Please make sure the subject is clear and centered."
+        };
+      } 
+      // Cycle 5: Offline (No Internet)
+      else if (_mockCycle % 6 == 5) {
+        return {
+          "error": true,
+          "errorType": "offline"
+        };
+      } 
+      // Cycle 6 (0): High Latency
+      else if (_mockCycle % 6 == 0) {
+        return {
+          "error": true,
+          "errorType": "timeout"
+        };
+      }
+
       double testScore;
-      if (_mockCycle % 3 == 1) {
+      if (_mockCycle % 6 == 1) {
         testScore = 0.90; // Green (>75%)
-      } else if (_mockCycle % 3 == 2) {
+      } else if (_mockCycle % 6 == 2) {
         testScore = 0.55; // Yellow (40-75%)
       } else {
         testScore = 0.20; // Red (<40%)
@@ -99,11 +123,7 @@ class AIService {
     try {
       final response = await _provider
           .analyzeFish(imagePath, location)
-          .timeout(const Duration(seconds: 25));
-      
-      // Inject location into response for downstream usage
-      response['location'] = location;
-      
+          .timeout(const Duration(seconds: 15));
       return response;
     } on TimeoutException catch (_) {
       return {

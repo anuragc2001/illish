@@ -9,6 +9,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/theme.dart';
 import '../services/db_service.dart';
 import '../config/app_config.dart';
+import 'widgets/upi_picker_sheet.dart';
+import '../services/admob_service.dart';
+import 'widgets/banner_ad_widget.dart';
+import 'widgets/share_card_preview.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -75,25 +79,31 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Future<void> _fetchVideos() async {
     final species = widget.aiData['englishName'] ?? 'Fish';
-    
+
     // Extract the local name from format "LocalName (English Name)"
     final localNameRaw = widget.aiData['localName'] as String?;
     String searchKeyword = species;
-    
+
     if (localNameRaw != null && localNameRaw.contains('(')) {
       // e.g. "Rui (Rohu)" -> "Rui"
       searchKeyword = localNameRaw.split('(')[0].trim();
     } else if (localNameRaw != null && localNameRaw.isNotEmpty) {
       searchKeyword = localNameRaw;
     }
-    
+
     final query = '$searchKeyword fish recipe'.trim();
 
     try {
       final cachedStr = await DBService.getCachedRecipes(query);
       if (cachedStr != null) {
         final List<dynamic> decoded = jsonDecode(cachedStr);
-        final parsed = decoded.map((e) => Map<String, dynamic>.from(e).map((k, v) => MapEntry(k, v?.toString() ?? ''))).toList();
+        final parsed = decoded
+            .map(
+              (e) => Map<String, dynamic>.from(
+                e,
+              ).map((k, v) => MapEntry(k, v?.toString() ?? '')),
+            )
+            .toList();
         if (parsed.isNotEmpty) {
           _videos = parsed;
           setState(() => _isLoadingVideos = false);
@@ -192,17 +202,18 @@ class _ResultsScreenState extends State<ResultsScreen>
     final species = widget.aiData['englishName'] ?? 'Fish';
     final localNameRaw = widget.aiData['localName'] as String?;
     String searchKeyword = species;
-    
+
     if (localNameRaw != null && localNameRaw.contains('(')) {
       searchKeyword = localNameRaw.split('(')[0].trim();
     } else if (localNameRaw != null && localNameRaw.isNotEmpty) {
       searchKeyword = localNameRaw;
     }
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AllRecipesScreen(query: '$searchKeyword fish recipe'),
+        builder: (context) =>
+            AllRecipesScreen(query: '$searchKeyword fish recipe'),
       ),
     );
   }
@@ -263,11 +274,11 @@ class _ResultsScreenState extends State<ResultsScreen>
       statusWord = 'Poor';
 
     // Evaluate timestamp and location properly
-    final DateTime scanTime = widget.aiData['timestamp'] != null 
-        ? DateTime.parse(widget.aiData['timestamp']) 
+    final DateTime scanTime = widget.aiData['timestamp'] != null
+        ? DateTime.parse(widget.aiData['timestamp'])
         : DateTime.now();
     final timeStr = TimeOfDay.fromDateTime(scanTime).format(context);
-    
+
     // Format date string nicely
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -280,15 +291,32 @@ class _ResultsScreenState extends State<ResultsScreen>
     } else if (difference == 1) {
       dateStr = 'yesterday';
     } else if (scanTime.year == now.year) {
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       String suffix = 'th';
-      if (scanTime.day % 10 == 1 && scanTime.day != 11) suffix = 'st';
-      else if (scanTime.day % 10 == 2 && scanTime.day != 12) suffix = 'nd';
-      else if (scanTime.day % 10 == 3 && scanTime.day != 13) suffix = 'rd';
-      
+      if (scanTime.day % 10 == 1 && scanTime.day != 11)
+        suffix = 'st';
+      else if (scanTime.day % 10 == 2 && scanTime.day != 12)
+        suffix = 'nd';
+      else if (scanTime.day % 10 == 3 && scanTime.day != 13)
+        suffix = 'rd';
+
       dateStr = '${scanTime.day}$suffix ${months[scanTime.month - 1]}';
     } else {
-      dateStr = '${scanTime.day.toString().padLeft(2, '0')}/${scanTime.month.toString().padLeft(2, '0')}/${scanTime.year}';
+      dateStr =
+          '${scanTime.day.toString().padLeft(2, '0')}/${scanTime.month.toString().padLeft(2, '0')}/${scanTime.year}';
     }
 
     // Determine ring and dot color based on score
@@ -301,274 +329,249 @@ class _ResultsScreenState extends State<ResultsScreen>
       ringColor = AppTheme.crimsonRed;
     }
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: isError || widget.aiData.isEmpty
-          ? Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      widget.aiData['errorType'] == 'offline'
-                          ? Icons.wifi_off_rounded
-                          : Icons
-                                .signal_cellular_connected_no_internet_0_bar_rounded,
-                      color: Colors.redAccent.withOpacity(0.8),
-                      size: 64,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      widget.aiData['errorType'] == 'offline'
-                          ? "Seems you are offline"
-                          : "Network connection is too slow",
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        AdMobService.handleResultsBackButton(
+          onProceed: () => Navigator.pop(context),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        body: isError || widget.aiData.isEmpty
+            ? Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        widget.aiData['errorType'] == 'offline'
+                            ? Icons.wifi_off_rounded
+                            : Icons
+                                  .signal_cellular_connected_no_internet_0_bar_rounded,
+                        color: Colors.redAccent.withOpacity(0.8),
+                        size: 64,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.aiData['errorType'] == 'offline'
-                          ? "Please connect to the internet to analyze this fish. Offline models are currently unavailable."
-                          : "The server took too long to respond. Please check your connection and try again.",
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: Colors.white54,
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.neonCyan,
-                          borderRadius: BorderRadius.circular(100),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.neonCyan.withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Retry Connection",
-                            style: GoogleFonts.inter(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
+                      const SizedBox(height: 24),
+                      Text(
+                        widget.aiData['errorType'] == 'offline'
+                            ? "Seems you are offline"
+                            : "Network connection is too slow",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.paddingOf(context).top > 0
-                      ? MediaQuery.paddingOf(context).top + 16.0
-                      : 48.0,
-                  bottom: 16.0,
-                  left: 24.0,
-                  right: 24.0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Custom Scrolling Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.aiData['errorType'] == 'offline'
+                            ? "Please connect to the internet to analyze this fish. Offline models are currently unavailable."
+                            : "The server took too long to respond. Please check your connection and try again.",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: Colors.white54,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white24, width: 1),
+                            color: AppTheme.neonCyan,
+                            borderRadius: BorderRadius.circular(100),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.neonCyan.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              if (Navigator.canPop(context)) {
-                                Navigator.pop(context);
-                              } else {
-                                Navigator.of(
-                                  context,
-                                  rootNavigator: true,
-                                ).pop();
-                              }
-                            },
-                          ),
-                        ),
-                        Column(
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.set_meal,
-                                  color: AppTheme.neonCyan,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Machi Master",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "AI Freshness Report",
+                          child: Center(
+                            child: Text(
+                              "Retry Connection",
                               style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white54,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
-                          ],
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white24, width: 1),
                           ),
-                          child: IconButton(
-                            icon: Icon(
-                              _isBookmarked
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_border,
-                              color: _isBookmarked
-                                  ? AppTheme.neonCyan
-                                  : Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.paddingOf(context).top > 0
+                        ? MediaQuery.paddingOf(context).top + 16.0
+                        : 48.0,
+                    bottom: 16.0,
+                    left: 24.0,
+                    right: 24.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Custom Scrolling Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white24,
+                                width: 1,
+                              ),
                             ),
-                            onPressed: () async {
-                              final imagePath =
-                                  widget.aiData['imagePath'] as String?;
-                              if (_isBookmarked) {
-                                setState(() => _isBookmarked = false);
-                                ScaffoldMessenger.of(context).clearSnackBars();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.info_outline,
-                                          color: Colors.black,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Removed from Bookmarks',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: AppTheme.neonCyan,
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(
-                                      milliseconds: 1500,
-                                    ),
-                                  ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                AdMobService.handleResultsBackButton(
+                                  onProceed: () {
+                                    if (Navigator.canPop(context)) {
+                                      Navigator.pop(context);
+                                    } else {
+                                      Navigator.of(
+                                        context,
+                                        rootNavigator: true,
+                                      ).pop();
+                                    }
+                                  },
                                 );
-                                await DBService.removeBookmark(imagePath);
-                              } else {
-                                setState(() => _isBookmarked = true);
-                                ScaffoldMessenger.of(context).clearSnackBars();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.check_circle,
-                                          color: Colors.black,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Added to Bookmarks',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: AppTheme.neonCyan,
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(
-                                      milliseconds: 1500,
-                                    ),
-                                  ),
-                                );
-                                await DBService.saveScan(
-                                  widget.aiData,
-                                  isBookmark: true,
-                                );
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.set_meal,
+                                    color: AppTheme.neonCyan,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Machi Master",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "AI Freshness Report",
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white24,
+                                width: 1,
+                              ),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.ios_share, color: Colors.white, size: 24),
+                              onPressed: () {
+                                showGeneralDialog(
+                                  context: context,
+                                  barrierDismissible: true,
+                                  barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+                                  barrierColor: Colors.black.withOpacity(0.5),
+                                  transitionDuration: const Duration(milliseconds: 300),
+                                  pageBuilder: (context, animation, secondaryAnimation) {
+                                    return ShareCardPreview(aiData: widget.aiData);
+                                  },
+                                  transitionBuilder: (context, animation, secondaryAnimation, child) {
+                                    return FadeTransition(
+                                      opacity: CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeOut,
+                                      ),
+                                      child: ScaleTransition(
+                                        scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeOutBack,
+                                          ),
+                                        ),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
 
-                    // Gauge Area
-                    Center(
-                      child: Container(
-                        width: 250,
-                        height: 250,
-                        decoration: const BoxDecoration(
-                          color: Colors.transparent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            AnimatedBuilder(
-                              animation: Listenable.merge([
-                                _animController,
-                                _shimmerController,
-                              ]),
-                              builder: (context, child) {
-                                return SizedBox(
-                                  width: 250,
-                                  height: 250,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // Option A: Full circular aura (Commented for A/B testing)
-                                      /*
+                      // Gauge Area
+                      Center(
+                        child: Container(
+                          width: 250,
+                          height: 250,
+                          decoration: const BoxDecoration(
+                            color: Colors.transparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              AnimatedBuilder(
+                                animation: Listenable.merge([
+                                  _animController,
+                                  _shimmerController,
+                                ]),
+                                builder: (context, child) {
+                                  return SizedBox(
+                                    width: 250,
+                                    height: 250,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      alignment: Alignment.center,
+                                      children: [
+                                        // Option A: Full circular aura (Commented for A/B testing)
+                                        /*
                                       Container(
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
@@ -584,277 +587,257 @@ class _ResultsScreenState extends State<ResultsScreen>
                                         ),
                                       ),
                                       */
-                                      
-                                      // Option B: Glow along the ring itself (Performant ImageFiltered)
-                                      Opacity(
-                                        opacity: _shimmerAnimation.value,
-                                        child: ImageFiltered(
-                                          imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                                          child: CustomPaint(
-                                            painter: FreshnessRingPainter(
-                                              (score * _progressAnimation.value).clamp(
-                                                0.0,
+
+                                        // Option B: Glow along the ring itself (Performant ImageFiltered)
+                                        Opacity(
+                                          opacity: _shimmerAnimation.value,
+                                          child: ImageFiltered(
+                                            imageFilter: ImageFilter.blur(
+                                              sigmaX: 8,
+                                              sigmaY: 8,
+                                            ),
+                                            child: CustomPaint(
+                                              painter: FreshnessRingPainter(
+                                                (score *
+                                                        _progressAnimation
+                                                            .value)
+                                                    .clamp(0.0, 1.0),
+                                                ringColor,
                                                 1.0,
                                               ),
-                                              ringColor,
-                                              1.0,
                                             ),
                                           ),
                                         ),
-                                      ),
-                                      
-                                      // Foreground crisp ring
-                                      CustomPaint(
-                                        painter: FreshnessRingPainter(
-                                          (score * _progressAnimation.value).clamp(
-                                            0.0,
-                                            1.0,
-                                          ),
-                                          ringColor,
-                                          _shimmerAnimation.value,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    AnimatedBuilder(
-                                      animation: _animController,
-                                      builder: (context, child) {
-                                        return Text(
-                                          (scoreInt * _progressAnimation.value)
-                                              .toInt()
-                                              .clamp(0, 100)
-                                              .toString(),
-                                          style: GoogleFonts.inter(
-                                            fontSize: 80,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            height: 1.0,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 8.0,
-                                      ),
-                                      child: Text(
-                                        "%",
-                                        style: GoogleFonts.inter(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.aiData['isOffline'] == true
-                                      ? "Offline Mode"
-                                      : (scoreInt >= 85
-                                            ? "Very fresh"
-                                            : (scoreInt >= 65
-                                                  ? "Fresh"
-                                                  : (scoreInt >= 40
-                                                        ? "Getting old"
-                                                        : "Stale"))),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 26,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
 
-                    Center(
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AnimatedBuilder(
-                                animation: _shimmerController,
-                                builder: (context, child) {
-                                  return Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: ringColor,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: ringColor.withOpacity(
+                                        // Foreground crisp ring
+                                        CustomPaint(
+                                          painter: FreshnessRingPainter(
+                                            (score * _progressAnimation.value)
+                                                .clamp(0.0, 1.0),
+                                            ringColor,
                                             _shimmerAnimation.value,
                                           ),
-                                          blurRadius: 4,
-                                          spreadRadius: 1,
                                         ),
                                       ],
                                     ),
                                   );
                                 },
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                statusWord.toUpperCase(),
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  letterSpacing: 1.5,
-                                ),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      AnimatedBuilder(
+                                        animation: _animController,
+                                        builder: (context, child) {
+                                          return Text(
+                                            (scoreInt *
+                                                    _progressAnimation.value)
+                                                .toInt()
+                                                .clamp(0, 100)
+                                                .toString(),
+                                            style: GoogleFonts.inter(
+                                              fontSize: 80,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                              height: 1.0,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8.0,
+                                        ),
+                                        child: Text(
+                                          "%",
+                                          style: GoogleFonts.inter(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    widget.aiData['isOffline'] == true
+                                        ? "Offline Mode"
+                                        : (scoreInt >= 85
+                                              ? "Very fresh"
+                                              : (scoreInt >= 65
+                                                    ? "Fresh"
+                                                    : (scoreInt >= 40
+                                                          ? "Getting old"
+                                                          : "Stale"))),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 26,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.aiData['isOffline'] == true
-                                ? "Basic Scan"
-                                : (scoreInt >= 85
-                                      ? "Safe to buy and consume."
-                                      : (scoreInt >= 65
-                                            ? "Good for cooking."
-                                            : (scoreInt >= 40
-                                                  ? "Use soon."
-                                                  : "Not recommended."))),
-                            style: GoogleFonts.inter(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Scanned $dateStr, $timeStr",
-                            style: GoogleFonts.inter(
-                              color: Colors.white38,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // OPTIONAL UI DIVIDER: Uncomment lines below to show faint divider above EVIDENCE section
-                    // const Padding(
-                    //   padding: EdgeInsets.symmetric(horizontal: 5.0),
-                    //   child: Divider(color: Colors.white10, height: 1),
-                    // ),
-                    Center(
-                      child: Text(
-                        "EVIDENCE",
-                        style: GoogleFonts.inter(
-                          color: AppTheme.neonCyan,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          style: GoogleFonts.inter(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            height: 1.5,
-                          ),
-                          children: evidence
-                              .split('•')
-                              .map((e) => e.trim())
-                              .where((e) => e.isNotEmpty)
-                              .toList()
-                              .asMap()
-                              .entries
-                              .map((entry) {
-                                final list = evidence
-                                    .split('•')
-                                    .map((e) => e.trim())
-                                    .where((e) => e.isNotEmpty)
-                                    .toList();
-                                final isLast = entry.key == list.length - 1;
-                                return TextSpan(
-                                  text: isLast
-                                      ? entry.value
-                                      : '${entry.value}  •  ',
-                                  style: isLast
-                                      ? null
-                                      : const TextStyle(color: Colors.white38),
-                                );
-                              })
-                              .toList(),
+                      const SizedBox(height: 12),
+
+                      Center(
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.max,
+                              children: [
+                                const Spacer(),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedBuilder(
+                                      animation: _shimmerController,
+                                      builder: (context, child) {
+                                        return Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: ringColor,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: ringColor.withOpacity(
+                                                  _shimmerAnimation.value,
+                                                ),
+                                                blurRadius: 4,
+                                                spreadRadius: 1,
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      statusWord.toUpperCase(),
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                          onTap: () async {
+                                            final imagePath = widget.aiData['imagePath'] as String?;
+                                            if (_isBookmarked) {
+                                              setState(() => _isBookmarked = false);
+                                              ScaffoldMessenger.of(context).clearSnackBars();
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.info_outline, color: Colors.black),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Removed from Bookmarks',
+                                                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: AppTheme.neonCyan,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  duration: const Duration(milliseconds: 1500),
+                                                ),
+                                              );
+                                              await DBService.removeBookmark(imagePath);
+                                            } else {
+                                              setState(() => _isBookmarked = true);
+                                              ScaffoldMessenger.of(context).clearSnackBars();
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.check_circle, color: Colors.black),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Added to Bookmarks',
+                                                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: AppTheme.neonCyan,
+                                                  behavior: SnackBarBehavior.floating,
+                                                  duration: const Duration(milliseconds: 1500),
+                                                ),
+                                              );
+                                              await DBService.saveScan(widget.aiData, isBookmark: true);
+                                            }
+                                          },
+                                          child: Icon(
+                                            _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                            color: _isBookmarked ? AppTheme.neonCyan : Colors.white54,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.aiData['isOffline'] == true
+                                  ? "Basic Scan"
+                                  : (scoreInt >= 85
+                                        ? "Safe to buy and consume."
+                                        : (scoreInt >= 65
+                                              ? "Good for cooking."
+                                              : (scoreInt >= 40
+                                                    ? "Use soon."
+                                                    : "Not recommended."))),
+                              style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Scanned $dateStr, $timeStr",
+                              style: GoogleFonts.inter(
+                                color: Colors.white38,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 32),
 
-                    if (trickeryTips.isNotEmpty) ...[
-                      _buildVendorTrickeryCard(trickeryTips),
-                      const SizedBox(height: 24),
-                    ],
-
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _buildInfoCard(
-                              icon: Icons.cut,
-                              title: "BEST CUTS",
-                              items: bestCuts,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildInfoCard(
-                              icon: Icons.restaurant,
-                              title: "IDEAL FOR",
-                              items: idealFor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (suggestedPrice != 'N/A') ...[
-                      _buildPriceCard(
-                        context,
-                        suggestedPrice,
-                        marketAvgPrice,
-                        priceExplanation,
-                        marketAvgExplanation,
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "RECIPES FOR YOU",
+                      // OPTIONAL UI DIVIDER: Uncomment lines below to show faint divider above EVIDENCE section
+                      // const Padding(
+                      //   padding: EdgeInsets.symmetric(horizontal: 5.0),
+                      //   child: Divider(color: Colors.white10, height: 1),
+                      // ),
+                      Center(
+                        child: Text(
+                          "EVIDENCE",
                           style: GoogleFonts.inter(
                             color: AppTheme.neonCyan,
                             fontSize: 12,
@@ -862,69 +845,212 @@ class _ResultsScreenState extends State<ResultsScreen>
                             letterSpacing: 1,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: _openAllRecipes,
-                          child: Row(
-                            children: [
-                              Text(
-                                "See all",
-                                style: GoogleFonts.inter(
-                                  color: Colors.white54,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.arrow_forward,
-                                color: Colors.white54,
-                                size: 14,
-                              ),
-                            ],
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              height: 1.5,
+                            ),
+                            children: evidence
+                                .split('•')
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty)
+                                .toList()
+                                .asMap()
+                                .entries
+                                .map((entry) {
+                                  final list = evidence
+                                      .split('•')
+                                      .map((e) => e.trim())
+                                      .where((e) => e.isNotEmpty)
+                                      .toList();
+                                  final isLast = entry.key == list.length - 1;
+                                  return TextSpan(
+                                    text: isLast
+                                        ? entry.value
+                                        : '${entry.value}  •  ',
+                                    style: isLast
+                                        ? null
+                                        : const TextStyle(
+                                            color: Colors.white38,
+                                          ),
+                                  );
+                                })
+                                .toList(),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    SizedBox(
-                      height: 180,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 500),
-                        child: _isLoadingVideos
-                            ? const Center(
-                                key: ValueKey('loading'),
-                                child: CircularProgressIndicator(
-                                  color: AppTheme.neonCyan,
-                                ),
-                              )
-                            : _videoError != null
-                            ? Center(
-                                key: const ValueKey('error'),
-                                child: Text(
-                                  _videoError!,
-                                  style: TextStyle(color: Colors.white54),
-                                ),
-                              )
-                            : ListView.builder(
-                                key: const ValueKey('list'),
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _videos.length,
-                                itemBuilder: (context, index) {
-                                  final vid = _videos[index];
-                                  return _buildDynamicVideoCard(
-                                    vid['title'] ?? 'Recipe',
-                                    vid['channel'] ?? '30 min',
-                                    vid['thumb'] ?? '',
-                                    vid['videoId'],
-                                  );
-                                },
-                              ),
                       ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 24),
+
+                      if (trickeryTips.isNotEmpty) ...[
+                        _buildVendorTrickeryCard(trickeryTips),
+                        const SizedBox(height: 24),
+                      ],
+
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _buildInfoCard(
+                                icon: Icons.cut,
+                                title: "BEST CUTS",
+                                items: bestCuts,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildInfoCard(
+                                icon: Icons.restaurant,
+                                title: "IDEAL FOR",
+                                items: idealFor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (suggestedPrice != 'N/A') ...[
+                        _buildPriceCard(
+                          context,
+                          suggestedPrice,
+                          marketAvgPrice,
+                          priceExplanation,
+                          marketAvgExplanation,
+                        ),
+                        const SizedBox(height: 16),
+                        if (AppConfig.kEnableUpiPayments)
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.neonCyan.withOpacity(0.35),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                  offset: const Offset(0, 0), // Centered glow
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: () => UpiPickerSheet.show(context),
+                              icon: const Icon(Icons.qr_code_scanner, size: 20),
+                              label: Text(
+                                "Pay Vendor",
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: AppTheme.background,
+                                backgroundColor: AppTheme.neonCyan,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation:
+                                    0, // removed elevation since Container has shadow
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "RECIPES FOR YOU",
+                            style: GoogleFonts.inter(
+                              color: AppTheme.neonCyan,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _openAllRecipes,
+                            child: Row(
+                              children: [
+                                Text(
+                                  "See all",
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.white54,
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      SizedBox(
+                        height: 175,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 500),
+                          child: _isLoadingVideos
+                              ? const Center(
+                                  key: ValueKey('loading'),
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.neonCyan,
+                                  ),
+                                )
+                              : _videoError != null
+                              ? Center(
+                                  key: const ValueKey('error'),
+                                  child: Text(
+                                    _videoError!,
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  key: const ValueKey('list'),
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _videos.length,
+                                  itemBuilder: (context, index) {
+                                    final vid = _videos[index];
+                                    return _buildDynamicVideoCard(
+                                      vid['title'] ?? 'Recipe',
+                                      vid['channel'] ?? '30 min',
+                                      vid['thumb'] ?? '',
+                                      vid['videoId'],
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                      if (!AppConfig.kIsPremiumUser) ...[
+                        const SizedBox(height: 16),
+                        const Center(child: BannerAdWidget()),
+                        const SizedBox(
+                          height: 30,
+                        ), // Restores the bottom gap that SafeArea used to provide
+                      ] else ...[
+                        const SizedBox(height: 16),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 
@@ -1470,6 +1596,7 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
@@ -1483,61 +1610,81 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
           ),
         ),
       ),
-      body: ListView.builder(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        itemCount: _videos.length + (_hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _videos.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(
-                child: CircularProgressIndicator(color: AppTheme.neonCyan),
+      body: Column(
+        children: [
+          if (!AppConfig.kIsPremiumUser) ...[
+            const BannerAdWidget(),
+            const SizedBox(height: 12),
+          ],
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 16,
               ),
-            );
-          }
-          final vid = _videos[index];
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-            leading: Container(
-              width: 100,
-              height: 60,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.white10,
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: vid['thumb']!.isNotEmpty
-                  ? Image.network(
-                      vid['thumb']!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Center(
-                            child: Icon(
-                              Icons.video_collection,
-                              color: Colors.white24,
-                              size: 24,
-                            ),
-                          ),
-                    )
-                  : null,
+              itemCount: _videos.length + (_hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _videos.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.neonCyan,
+                      ),
+                    ),
+                  );
+                }
+                final vid = _videos[index];
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  leading: Container(
+                    width: 100,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white10,
+                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child: vid['thumb']!.isNotEmpty
+                        ? Image.network(
+                            vid['thumb']!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Center(
+                                  child: Icon(
+                                    Icons.video_collection,
+                                    color: Colors.white24,
+                                    size: 24,
+                                  ),
+                                ),
+                          )
+                        : null,
+                  ),
+                  title: Text(
+                    vid['title']!,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    vid['channel'] ?? 'YouTube',
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                  ),
+                  onTap: () => _launchVideo(vid['videoId']),
+                );
+              },
             ),
-            title: Text(
-              vid['title']!,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            subtitle: Text(
-              vid['channel'] ?? 'YouTube',
-              style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
-            ),
-            onTap: () => _launchVideo(vid['videoId']),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
