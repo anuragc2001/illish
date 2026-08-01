@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:async/async.dart';
 import '../config/app_config.dart';
 import 'ai/ai_provider.dart';

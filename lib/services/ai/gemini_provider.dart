@@ -1,17 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'ai_provider.dart';
+import '../remote_config_service.dart';
 
 class GeminiProvider implements AIProvider {
-  late final GenerativeModel? _cloudModel;
+  GenerativeModel? _cloudModel;
 
   GeminiProvider() {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    final modelName = dotenv.env['GEMINI_MODEL'] ?? 'gemini-3.6-flash';
-    if (apiKey != null && apiKey.isNotEmpty) {
-      _cloudModel = GenerativeModel(model: modelName, apiKey: apiKey);
+    _initModel();
+  }
+  
+  void _initModel() {
+    final apiKey = RemoteConfigService.geminiApiKey;
+    final modelName = RemoteConfigService.geminiModel;
+    if (apiKey.isNotEmpty) {
+      _cloudModel = GenerativeModel(model: modelName.isNotEmpty ? modelName : 'gemini-3.6-flash', apiKey: apiKey);
     } else {
       _cloudModel = null;
     }
@@ -22,6 +26,8 @@ class GeminiProvider implements AIProvider {
     String imagePath,
     String location,
   ) async {
+    _initModel(); // Refresh model in case API key changed remotely
+    
     if (_cloudModel == null) {
       throw Exception('Gemini API Key is missing or invalid.');
     }

@@ -25,7 +25,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   void _loadAd() {
-    if (AppConfig.kIsPremiumUser) return; // No ads for premium users
+    if (AppConfig.isPremiumUser) return; // No ads for premium users
 
     _bannerAd = BannerAd(
       adUnitId: AdMobService.bannerAdUnitId,
@@ -55,34 +55,26 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (AppConfig.kIsPremiumUser) {
-      return const SizedBox.shrink(); // Hide instantly for premium
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppConfig.isPremiumNotifier,
+      builder: (context, isPremium, child) {
+        if (isPremium) {
+          return const SizedBox.shrink(); // Hide instantly for premium
+        }
 
-    if (!_isLoaded || _bannerAd == null) {
-      return Container(
-        width: widget.size.width.toDouble(),
-        height: widget.size.height.toDouble(),
-        /*
-        decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.neonCyan.withOpacity(0.3), width: 1),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        */
-      ); // Keep space while loading to prevent UI jump
-    }
+        if (!_isLoaded || _bannerAd == null) {
+          return Container(
+            width: widget.size.width.toDouble(),
+            height: widget.size.height.toDouble(),
+          ); // Keep space while loading to prevent UI jump
+        }
 
-    return Container(
-      width: widget.size.width.toDouble(),
-      height: widget.size.height.toDouble(),
-      /*
-      decoration: BoxDecoration(
-        border: Border.all(color: AppTheme.neonCyan.withOpacity(0.6), width: 1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      clipBehavior: Clip.hardEdge,
-      */
-      child: _adWidget,
+        return Container(
+          width: widget.size.width.toDouble(),
+          height: widget.size.height.toDouble(),
+          child: _adWidget,
+        );
+      },
     );
   }
 }

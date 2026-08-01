@@ -88,7 +88,18 @@
       <string>phonepe</string>
       <string>paytm</string>
       <string>credpay</string>
-      <string>bhim</string>
+    </array>
+    <!-- Google Sign-in Section -->
+    <key>CFBundleURLTypes</key>
+    <array>
+      <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Editor</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.795942291684-por9u3u4b4k3g9k523d2a11e45664rod</string>
+        </array>
+      </dict>
     </array>
   </dict>
 </plist>

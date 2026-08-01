@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 import 'core/theme.dart';
+import 'services/remote_config_service.dart';
 import 'screens/camera_screen.dart';
 import 'services/db_service.dart';
 import 'services/admob_service.dart';
@@ -22,11 +26,18 @@ List<CameraDescription> cameras = [];
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint("Warning: Could not load .env file: $e");
   }
+
+  await RemoteConfigService.initialize();
+
   await DBService.initialize();
   await AdMobService.initialize();
 

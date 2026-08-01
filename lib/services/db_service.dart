@@ -4,6 +4,7 @@ import 'dart:io';
 import '../core/models/scan_record.dart';
 import '../core/models/recipe_cache.dart';
 import '../config/app_config.dart';
+import 'sync_service.dart';
 
 class DBService {
   static late Isar isar;
@@ -41,7 +42,9 @@ class DBService {
   }
 
   static Future<void> saveScan(Map<String, dynamic> aiData, {bool isBookmark = false}) async {
+    final now = DateTime.now();
     final record = ScanRecord()
+      ..id = now.millisecondsSinceEpoch
       ..imagePath = aiData['imagePath']
       ..englishName = aiData['englishName']
       ..localName = aiData['localName']
@@ -54,11 +57,14 @@ class DBService {
       ..trickeryTips = List<String>.from(aiData['trickeryTips'] ?? [])
       ..suggestedPrice = aiData['suggestedPrice']?.toString()
       ..marketAvgPrice = aiData['marketAvgPrice']?.toString()
-      ..timestamp = DateTime.now()
+      ..timestamp = now
       ..isBookmark = isBookmark;
 
     await isar.writeTxn(() async {
       await isar.scanRecords.put(record);
+      
+      // Async fire-and-forget sync to Firestore
+      SyncService.upsertScanRecord(record);
       
       if (!isBookmark) {
         final overflowScans = await isar.scanRecords
@@ -145,6 +151,10 @@ class DBService {
     await isar.writeTxn(() async {
       await isar.scanRecords.delete(id);
     });
+    
+    // Async fire-and-forget sync delete
+    SyncService.deleteScanRecord(id);
+    
     await _cleanupImageIfUnused(imagePath);
   }
 

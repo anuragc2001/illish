@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../core/theme.dart';
 import '../services/db_service.dart';
 import '../config/app_config.dart';
+import '../services/remote_config_service.dart';
 import 'widgets/upi_picker_sheet.dart';
 import '../services/admob_service.dart';
 import 'widgets/banner_ad_widget.dart';
@@ -112,7 +112,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         }
       }
 
-      final apiKey = dotenv.env['YOUTUBE_API_KEY'];
+      final apiKey = RemoteConfigService.youtubeApiKey;
       final url = Uri.parse(
         'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount',
       );
@@ -1038,7 +1038,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                 ),
                         ),
                       ),
-                      if (!AppConfig.kIsPremiumUser) ...[
+                      if (!AppConfig.isPremiumUser) ...[
                         const SizedBox(height: 16),
                         const Center(child: BannerAdWidget()),
                         const SizedBox(
@@ -1521,7 +1521,7 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final apiKey = dotenv.env['YOUTUBE_API_KEY'];
+      final apiKey = RemoteConfigService.youtubeApiKey;
       var urlStr =
           'https://www.googleapis.com/youtube/v3/search?part=snippet&q=${widget.query}&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount';
       if (_pageToken != null) urlStr += '&pageToken=$_pageToken';
@@ -1613,7 +1613,7 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
       ),
       body: Column(
         children: [
-          if (!AppConfig.kIsPremiumUser) ...[
+          if (!AppConfig.isPremiumUser) ...[
             const BannerAdWidget(),
             const SizedBox(height: 12),
           ],

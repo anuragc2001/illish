@@ -11,19 +11,38 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-mcp_config.json
-.env
 
-# IntelliJ related
+# Environment Files & API Secrets
+.env
+.env.*
+!.env.example
+remote-config.json
+mcp_config.json
+
+# Firebase Credentials & Generated Configs (Contains API Keys & OAuth Client IDs)
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase_options.dart
+*service-account*.json
+
+# Android Keys & Keystores
+key.properties
+*.keystore
+*.jks
+
+# iOS Certificates & Provisioning Profiles
+*.mobileprovision
+*.cer
+*.p12
+
+# IntelliJ / Android Studio related
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code related
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -41,7 +60,7 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio build artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release

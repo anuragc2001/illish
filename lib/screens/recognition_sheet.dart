@@ -36,7 +36,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
   }
 
   void _handleAction() async {
-    if (AppConfig.kIsPremiumUser) {
+    if (AppConfig.isPremiumUser) {
       if (!mounted) return;
       Navigator.pop(context);
       Navigator.push(context, MaterialPageRoute(
@@ -221,7 +221,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                               ),
                             ),
                             const SizedBox(width: 12),
-                            if (AppConfig.kIsPremiumUser)
+                            if (AppConfig.isPremiumUser)
                               AnimatedBuilder(
                                 animation: _animController,
                                 builder: (context, child) {
@@ -287,7 +287,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                       ),
                     ),
                   ],
-                  if (!AppConfig.kIsPremiumUser)
+                  if (!AppConfig.isPremiumUser)
                     const Padding(
                       padding: EdgeInsets.only(top: 16.0),
                       child: BannerAdWidget(),
