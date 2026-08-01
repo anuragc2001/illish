@@ -18,6 +18,7 @@ import '../services/ai_service.dart';
 import '../services/db_service.dart';
 import 'recognition_sheet.dart';
 import 'results_screen.dart';
+import 'profile_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -650,104 +651,151 @@ class _CameraScreenState extends State<CameraScreen>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            if (!Platform.isIOS)
-                              GestureDetector(
-                                onTap: () => SystemNavigator.pop(),
-                                child: const Icon(
-                                  Icons.arrow_back_ios,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            if (!Platform.isIOS) const SizedBox(width: 12),
-                            GestureDetector(
-                              onTap: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  useSafeArea: false, // Prevents black gaps
-                                  isScrollControlled: true,
-                                  backgroundColor: AppTheme.cardBackground,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(24),
-                                    ),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              if (!Platform.isIOS)
+                                GestureDetector(
+                                  onTap: () => SystemNavigator.pop(),
+                                  child: const Icon(
+                                    Icons.arrow_back_ios,
+                                    color: Colors.white,
+                                    size: 20,
                                   ),
-                                  builder: (context) => SafeArea(
-                                    child: SingleChildScrollView(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(24.0),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              "Select Location",
-                                              style: GoogleFonts.inter(
-                                                color: Colors.white,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 16),
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.my_location,
-                                                color: AppTheme.neonCyan,
-                                              ),
-                                              title: Text(
-                                                "Current Location",
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              subtitle: Text(
-                                                "Detect using GPS",
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                setState(
-                                                  () => _currentLocation =
-                                                      "Locating...",
-                                                );
-                                                _initLocation();
-                                              },
-                                            ),
-                                            const Divider(
-                                              color: Colors.white10,
-                                            ),
-                                            if (_locationHistory
-                                                .isNotEmpty) ...[
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 8,
-                                                    ),
-                                                child: Text(
-                                                  "RECENT",
+                                ),
+                              if (!Platform.isIOS) const SizedBox(width: 12),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 220),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      useSafeArea: false, // Prevents black gaps
+                                      isScrollControlled: true,
+                                      backgroundColor: AppTheme.cardBackground,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(24),
+                                        ),
+                                      ),
+                                      builder: (context) => SafeArea(
+                                        child: SingleChildScrollView(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(24.0),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  "Select Location",
                                                   style: GoogleFonts.inter(
-                                                    color: Colors.white38,
-                                                    fontSize: 12,
+                                                    color: Colors.white,
+                                                    fontSize: 18,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                              ),
-                                              ..._locationHistory.map(
-                                                (loc) => ListTile(
+                                                const SizedBox(height: 16),
+                                                ListTile(
                                                   leading: const Icon(
-                                                    Icons.history,
+                                                    Icons.my_location,
+                                                    color: AppTheme.neonCyan,
+                                                  ),
+                                                  title: Text(
+                                                    "Current Location",
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  subtitle: Text(
+                                                    "Detect using GPS",
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white54,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                  onTap: () {
+                                                    Navigator.pop(context);
+                                                    setState(
+                                                      () => _currentLocation =
+                                                          "Locating...",
+                                                    );
+                                                    _initLocation();
+                                                  },
+                                                ),
+                                                const Divider(
+                                                  color: Colors.white10,
+                                                ),
+                                                if (_locationHistory
+                                                    .isNotEmpty) ...[
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 16,
+                                                          vertical: 8,
+                                                        ),
+                                                    child: Text(
+                                                      "RECENT",
+                                                      style: GoogleFonts.inter(
+                                                        color: Colors.white38,
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  ..._locationHistory.map(
+                                                    (loc) => ListTile(
+                                                      leading: const Icon(
+                                                        Icons.history,
+                                                        color: Colors.white54,
+                                                      ),
+                                                      title: Text(
+                                                        loc,
+                                                        style: GoogleFonts.inter(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                      onTap: () {
+                                                        setState(
+                                                          () => _currentLocation =
+                                                              loc,
+                                                        );
+                                                        _saveLocationHistory(loc);
+                                                        _triggerLocationAnimation();
+                                                        Navigator.pop(context);
+                                                      },
+                                                    ),
+                                                  ),
+                                                  const Divider(
+                                                    color: Colors.white10,
+                                                  ),
+                                                ],
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 8,
+                                                      ),
+                                                  child: Text(
+                                                    "NEARBY CITIES",
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white38,
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                ListTile(
+                                                  leading: const Icon(
+                                                    Icons.location_city,
                                                     color: Colors.white54,
                                                   ),
                                                   title: Text(
-                                                    loc,
+                                                    "Kolkata, West Bengal",
                                                     style: GoogleFonts.inter(
                                                       color: Colors.white,
                                                     ),
@@ -755,132 +803,120 @@ class _CameraScreenState extends State<CameraScreen>
                                                   onTap: () {
                                                     setState(
                                                       () => _currentLocation =
-                                                          loc,
+                                                          "Kolkata, West Bengal",
                                                     );
-                                                    _saveLocationHistory(loc);
+                                                    _saveLocationHistory(
+                                                      "Kolkata, West Bengal",
+                                                    );
                                                     _triggerLocationAnimation();
                                                     Navigator.pop(context);
                                                   },
                                                 ),
-                                              ),
-                                              const Divider(
-                                                color: Colors.white10,
-                                              ),
-                                            ],
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                    vertical: 8,
-                                                  ),
-                                              child: Text(
-                                                "NEARBY CITIES",
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white38,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
+                                                const SizedBox(height: 16),
+                                              ],
                                             ),
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.location_city,
-                                                color: Colors.white54,
-                                              ),
-                                              title: Text(
-                                                "Kolkata, West Bengal",
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              onTap: () {
-                                                setState(
-                                                  () => _currentLocation =
-                                                      "Kolkata, West Bengal",
-                                                );
-                                                _saveLocationHistory(
-                                                  "Kolkata, West Bengal",
-                                                );
-                                                _triggerLocationAnimation();
-                                                Navigator.pop(context);
-                                              },
-                                            ),
-                                            const SizedBox(height: 16),
-                                          ],
+                                          ),
                                         ),
                                       ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(100),
+                                      border: Border.all(
+                                        color: Colors.white24,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        ScaleTransition(
+                                          scale: _locAnimation,
+                                          child: const Icon(
+                                            Icons.location_on,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _currentLocation,
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 14,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.keyboard_arrow_down,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
                                 ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                        const SizedBox(width: 8),
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: _showRecentScans,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(100),
+                                  shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.white24,
                                     width: 1,
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    ScaleTransition(
-                                      scale: _locAnimation,
-                                      child: const Icon(
-                                        Icons.location_on,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 160,
-                                      ),
-                                      child: Text(
-                                        _currentLocation,
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.keyboard_arrow_down,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ],
+                                child: const Icon(
+                                  Icons.history,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white24,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.person_outline,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
                               ),
                             ),
                           ],
-                        ),
-                        GestureDetector(
-                          onTap: _showRecentScans,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white24,
-                                width: 1,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.history,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
                         ),
                       ],
                     ),

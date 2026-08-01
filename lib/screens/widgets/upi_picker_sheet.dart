@@ -129,21 +129,22 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
 
     if (_apps == null || _apps!.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 48, color: Colors.white.withOpacity(0.5)),
-            const SizedBox(height: 16),
+            Icon(Icons.account_balance_wallet_outlined, size: 40, color: Colors.white.withOpacity(0.5)),
+            const SizedBox(height: 10),
             Text(
               'No supported UPI app found.\nInstall PhonePe, Google Pay, CRED, BHIM, or Paytm to continue.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                fontSize: 14,
+                fontSize: 13,
                 color: Colors.white70,
-                height: 1.5,
+                height: 1.4,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Dismiss', style: TextStyle(color: Colors.blueAccent)),

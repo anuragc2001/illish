@@ -13,6 +13,7 @@ import 'widgets/upi_picker_sheet.dart';
 import '../services/admob_service.dart';
 import 'widgets/banner_ad_widget.dart';
 import 'widgets/share_card_preview.dart';
+import 'profile_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
