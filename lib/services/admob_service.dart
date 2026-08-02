@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import 'remote_config_service.dart';
 
@@ -35,6 +36,9 @@ class AdMobService {
   static Future<void> initialize() async {
     if (AppConfig.isPremiumUser) return; // Don't initialize for premium users
     
+    final prefs = await SharedPreferences.getInstance();
+    _resultsBackClickCount = prefs.getInt('adClickCount') ?? 0;
+
     await MobileAds.instance.initialize();
     _loadInterstitialAd();
   }
@@ -97,14 +101,16 @@ class AdMobService {
     _interstitialAd!.show();
   }
 
-  /// Helper specifically for the Results Screen back button (every 3rd click)
-  static void handleResultsBackButton({required VoidCallback onProceed}) {
+  static void handleResultsBackButton({required VoidCallback onProceed}) async {
     if (AppConfig.isPremiumUser) {
       onProceed();
       return;
     }
 
     _resultsBackClickCount++;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('adClickCount', _resultsBackClickCount);
+
     if (_resultsBackClickCount % 3 == 0) {
       showInterstitialAd(onAdDismissed: onProceed);
     } else {

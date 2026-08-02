@@ -62,33 +62,38 @@ const ScanRecordSchema = CollectionSchema(
       name: r'isSynced',
       type: IsarType.bool,
     ),
-    r'localName': PropertySchema(
+    r'isUnlocked': PropertySchema(
       id: 9,
+      name: r'isUnlocked',
+      type: IsarType.bool,
+    ),
+    r'localName': PropertySchema(
+      id: 10,
       name: r'localName',
       type: IsarType.string,
     ),
     r'marketAvgPrice': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'marketAvgPrice',
       type: IsarType.string,
     ),
     r'region': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'region',
       type: IsarType.string,
     ),
     r'suggestedPrice': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'suggestedPrice',
       type: IsarType.string,
     ),
     r'timestamp': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'timestamp',
       type: IsarType.dateTime,
     ),
     r'trickeryTips': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'trickeryTips',
       type: IsarType.stringList,
     )
@@ -200,12 +205,13 @@ void _scanRecordSerialize(
   writer.writeString(offsets[6], object.imagePath);
   writer.writeBool(offsets[7], object.isBookmark);
   writer.writeBool(offsets[8], object.isSynced);
-  writer.writeString(offsets[9], object.localName);
-  writer.writeString(offsets[10], object.marketAvgPrice);
-  writer.writeString(offsets[11], object.region);
-  writer.writeString(offsets[12], object.suggestedPrice);
-  writer.writeDateTime(offsets[13], object.timestamp);
-  writer.writeStringList(offsets[14], object.trickeryTips);
+  writer.writeBool(offsets[9], object.isUnlocked);
+  writer.writeString(offsets[10], object.localName);
+  writer.writeString(offsets[11], object.marketAvgPrice);
+  writer.writeString(offsets[12], object.region);
+  writer.writeString(offsets[13], object.suggestedPrice);
+  writer.writeDateTime(offsets[14], object.timestamp);
+  writer.writeStringList(offsets[15], object.trickeryTips);
 }
 
 ScanRecord _scanRecordDeserialize(
@@ -225,12 +231,13 @@ ScanRecord _scanRecordDeserialize(
   object.imagePath = reader.readStringOrNull(offsets[6]);
   object.isBookmark = reader.readBool(offsets[7]);
   object.isSynced = reader.readBool(offsets[8]);
-  object.localName = reader.readStringOrNull(offsets[9]);
-  object.marketAvgPrice = reader.readStringOrNull(offsets[10]);
-  object.region = reader.readStringOrNull(offsets[11]);
-  object.suggestedPrice = reader.readStringOrNull(offsets[12]);
-  object.timestamp = reader.readDateTime(offsets[13]);
-  object.trickeryTips = reader.readStringList(offsets[14]) ?? [];
+  object.isUnlocked = reader.readBool(offsets[9]);
+  object.localName = reader.readStringOrNull(offsets[10]);
+  object.marketAvgPrice = reader.readStringOrNull(offsets[11]);
+  object.region = reader.readStringOrNull(offsets[12]);
+  object.suggestedPrice = reader.readStringOrNull(offsets[13]);
+  object.timestamp = reader.readDateTime(offsets[14]);
+  object.trickeryTips = reader.readStringList(offsets[15]) ?? [];
   return object;
 }
 
@@ -260,7 +267,7 @@ P _scanRecordDeserializeProp<P>(
     case 8:
       return (reader.readBool(offset)) as P;
     case 9:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 10:
       return (reader.readStringOrNull(offset)) as P;
     case 11:
@@ -268,8 +275,10 @@ P _scanRecordDeserializeProp<P>(
     case 12:
       return (reader.readStringOrNull(offset)) as P;
     case 13:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 14:
+      return (reader.readDateTime(offset)) as P;
+    case 15:
       return (reader.readStringList(offset) ?? []) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1588,6 +1597,16 @@ extension ScanRecordQueryFilter
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> isUnlockedEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isUnlocked',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition>
       localNameIsNull() {
     return QueryBuilder.apply(this, (query) {
@@ -2571,6 +2590,18 @@ extension ScanRecordQuerySortBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsUnlocked() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isUnlocked', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsUnlockedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isUnlocked', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByLocalName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'localName', Sort.asc);
@@ -2735,6 +2766,18 @@ extension ScanRecordQuerySortThenBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsUnlocked() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isUnlocked', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsUnlockedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isUnlocked', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByLocalName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'localName', Sort.asc);
@@ -2860,6 +2903,12 @@ extension ScanRecordQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByIsUnlocked() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isUnlocked');
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByLocalName(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2964,6 +3013,12 @@ extension ScanRecordQueryProperty
   QueryBuilder<ScanRecord, bool, QQueryOperations> isSyncedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isSynced');
+    });
+  }
+
+  QueryBuilder<ScanRecord, bool, QQueryOperations> isUnlockedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isUnlocked');
     });
   }
 

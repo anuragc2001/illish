@@ -14,6 +14,8 @@ import '../services/admob_service.dart';
 import 'widgets/banner_ad_widget.dart';
 import 'widgets/share_card_preview.dart';
 import 'profile_screen.dart';
+import '../services/auth_service.dart';
+import '../core/models/scan_record.dart';
 
 class ResultsScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -66,6 +68,131 @@ class _ResultsScreenState extends State<ResultsScreen>
     });
     _fetchVideos();
     _checkBookmarkStatus();
+    _checkAndShowMarketingModal();
+  }
+
+  void _checkAndShowMarketingModal() async {
+    if (AuthService.currentUser == null || AuthService.currentUser!.isAnonymous) {
+      final count = await DBService.isar.scanRecords.count();
+      if (count == 1 || (count > 1 && (count - 1) % 4 == 0)) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => _buildMarketingModal(context),
+            );
+          }
+        });
+      }
+    }
+  }
+
+  Widget _buildMarketingModal(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161B22).withOpacity(0.85),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppTheme.neonCyan.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.neonCyan.withOpacity(0.1),
+                  blurRadius: 20,
+                  spreadRadius: -5,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.neonCyan.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.cloud_sync, color: AppTheme.neonCyan, size: 36),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Save Your Scans",
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Sign in to automatically sync your history across devices and unlock all features. Don't lose your fishy discoveries!",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context); // Close the modal
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      );
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.person, size: 24),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Go to Profile to Sign In',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Maybe Later",
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _checkBookmarkStatus() async {
@@ -1004,7 +1131,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                       const SizedBox(height: 16),
 
                       SizedBox(
-                        height: 175,
+                        height: 190,
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 500),
                           child: _isLoadingVideos

@@ -103,11 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   builder: (context, snapshot) {
                     final user = snapshot.data;
                     final isLoggedIn = user != null;
-                    final displayName =
-                        user?.displayName ??
-                        (user?.isAnonymous == true
-                            ? "Anonymous Fisher"
-                            : "Guest Fisher");
+                    final displayName = user?.displayName ?? "Guest Fisher";
                     final email = user?.email ?? "";
 
                     return _buildGlassCard(
@@ -288,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       color: Colors.white70,
                                     ),
                                     label: const Text(
-                                      "Sign in Anonymously (Guest)",
+                                      "Sign in as Guest",
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontWeight: FontWeight.bold,

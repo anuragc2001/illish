@@ -1,5 +1,6 @@
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RemoteConfigService {
@@ -28,10 +29,16 @@ class RemoteConfigService {
 
       await _remoteConfig.fetchAndActivate();
       
-      // Listen to real-time updates
-      _remoteConfig.onConfigUpdated.listen((event) async {
-        await _remoteConfig.activate();
-        debugPrint("Remote Config Updated: \${event.updatedKeys}");
+      // Listen to real-time updates safely across threads
+      _remoteConfig.onConfigUpdated.listen((event) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          try {
+            await _remoteConfig.activate();
+            debugPrint("Remote Config Updated: ${event.updatedKeys}");
+          } catch (e) {
+            debugPrint("Error activating updated remote config: $e");
+          }
+        });
       });
       
     } catch (e) {

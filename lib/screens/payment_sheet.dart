@@ -3,11 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import 'results_screen.dart';
 import '../services/admob_service.dart';
+import '../services/db_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
+  final int? scanId;
 
-  const PaymentScreen({super.key, required this.aiData});
+  const PaymentScreen({super.key, required this.aiData, this.scanId});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -77,6 +79,10 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
     await Future.delayed(const Duration(seconds: 1));
 
     if (context.mounted) {
+      if (widget.scanId != null) {
+        await DBService.unlockScan(widget.scanId!);
+      }
+      if (!mounted) return;
       Navigator.pop(context); // pop dialog
       Navigator.pushReplacement(
         context,
@@ -125,7 +131,10 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                           ),
                           TextButton(
                             onPressed: () {
-                              AdMobService.showInterstitialAd(onAdDismissed: () {
+                              AdMobService.showInterstitialAd(onAdDismissed: () async {
+                                if (widget.scanId != null) {
+                                  await DBService.unlockScan(widget.scanId!);
+                                }
                                 if (context.mounted) {
                                   Navigator.pushReplacement(
                                     context,

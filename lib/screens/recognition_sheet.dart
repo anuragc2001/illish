@@ -10,7 +10,8 @@ import '../services/admob_service.dart';
 
 class RecognitionSheet extends StatefulWidget {
   final Map<String, dynamic> aiData;
-  const RecognitionSheet({super.key, required this.aiData});
+  final int? scanId;
+  const RecognitionSheet({super.key, required this.aiData, this.scanId});
 
   @override
   State<RecognitionSheet> createState() => _RecognitionSheetState();
@@ -51,7 +52,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
     if (!mounted) return;
     Navigator.pop(context);
     Navigator.push(context, PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: widget.aiData),
+      pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: widget.aiData, scanId: widget.scanId),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         const begin = Offset(0.0, 1.0);
         const end = Offset.zero;

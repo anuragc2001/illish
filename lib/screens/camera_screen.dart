@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:gal/gal.dart' as gal;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../main.dart';
 import '../core/theme.dart';
 import '../config/app_config.dart';
@@ -19,6 +20,7 @@ import '../services/db_service.dart';
 import 'recognition_sheet.dart';
 import 'results_screen.dart';
 import 'profile_screen.dart';
+import '../core/models/scan_record.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -339,8 +341,32 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   void _processImage(String imagePath, {bool fromCamera = false}) async {
+    String processedPath = imagePath;
+    String savedFilename = imagePath.split('/').last;
+
+    try {
+      final filename = '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last.replaceAll('.png', '.jpg')}';
+      final targetPath = '${AppConfig.documentsPath}/$filename';
+      
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        imagePath,
+        targetPath,
+        quality: 80,
+        minWidth: 1080,
+        minHeight: 1080,
+        format: CompressFormat.jpeg,
+      );
+      
+      if (compressedFile != null) {
+        processedPath = compressedFile.path;
+        savedFilename = filename;
+      }
+    } catch (e) {
+      debugPrint('Failed to compress image before AI analysis: $e');
+    }
+
     final aiService = AIService();
-    final operation = aiService.analyzeFish(imagePath, _currentLocation);
+    final operation = aiService.analyzeFish(processedPath, _currentLocation);
     bool isCancelled = false;
 
     showGeneralDialog(
@@ -372,7 +398,7 @@ class _CameraScreenState extends State<CameraScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _HUDThumbnail(imagePath),
+                        _HUDThumbnail(processedPath),
                         const SizedBox(height: 24),
                         Text(
                           "Analyzing freshness...",
@@ -440,31 +466,11 @@ class _CameraScreenState extends State<CameraScreen>
     final result = await operation.valueOrCancellation();
     if (!mounted || isCancelled) return;
 
-    // Save image to device gallery silently only if taken from camera AND not cancelled
-    if (fromCamera) {
-      try {
-        final hasAccess = await gal.Gal.hasAccess();
-        if (!hasAccess) await gal.Gal.requestAccess();
-        await gal.Gal.putImage(imagePath);
-      } catch (e) {
-        debugPrint('Failed to auto-save to gallery: $e');
-      }
-    }
-
     Navigator.pop(context); // close dialog
     if (result != null) {
-      try {
-        final filename =
-            '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last}';
-        final savedImage = await File(
-          imagePath,
-        ).copy('${AppConfig.documentsPath}/$filename');
-        result['imagePath'] = filename;
-      } catch (e) {
-        debugPrint('Failed to copy image to documents: $e');
-        result['imagePath'] = imagePath; // fallback
-      }
-      await DBService.saveScan(
+      result['imagePath'] = savedFilename;
+
+      final savedId = await DBService.saveScan(
         result,
         isBookmark: false,
       ); // Fix 4: save to history automatically
@@ -475,7 +481,7 @@ class _CameraScreenState extends State<CameraScreen>
         isScrollControlled: true,
         useSafeArea: false, // Prevents black gaps
         backgroundColor: Colors.transparent,
-        builder: (context) => RecognitionSheet(aiData: result),
+        builder: (context) => RecognitionSheet(aiData: result, scanId: savedId),
       );
       if (mounted) setState(() => _isUIHidden = false);
     }
@@ -1258,6 +1264,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
   int _offset = 0;
   bool _hasMore = true;
   bool _isLoadingMore = false;
+  StreamSubscription<void>? _dbSubscription;
 
   @override
   void initState() {
@@ -1265,12 +1272,19 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _loadData();
+    
+    _dbSubscription = DBService.isar.scanRecords.watchLazy().listen((_) {
+      if (mounted) {
+        _loadData();
+      }
+    });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _dbSubscription?.cancel();
     super.dispose();
   }
 
@@ -1458,25 +1472,48 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                               color: Colors.transparent,
                               child: ListTile(
                                 leading: item.imagePath != null
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.file(
-                                          File(
-                                            DBService.getImagePath(
-                                                  item.imagePath!,
-                                                ) ??
-                                                '',
+                                    ? Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.file(
+                                              File(
+                                                DBService.getImagePath(
+                                                      item.imagePath!,
+                                                    ) ??
+                                                    '',
+                                              ),
+                                              width: 50,
+                                              height: 50,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) {
+                                                return const Icon(
+                                                  Icons.image,
+                                                  color: Colors.white54,
+                                                );
+                                              },
+                                            ),
                                           ),
-                                          width: 50,
-                                          height: 50,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) {
-                                            return const Icon(
-                                              Icons.image,
-                                              color: Colors.white54,
-                                            );
-                                          },
-                                        ),
+                                          if (!AppConfig.isPremiumUser && !item.isUnlocked)
+                                            Positioned(
+                                              top: -4,
+                                              left: -4,
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withOpacity(0.8),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(color: Colors.white24, width: 1),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.lock,
+                                                  color: Colors.white,
+                                                  size: 10,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       )
                                     : const Icon(
                                         Icons.set_meal,
@@ -1516,13 +1553,24 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                         .toIso8601String(),
                                     'location': item.region,
                                   };
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          ResultsScreen(aiData: aiData),
-                                    ),
-                                  );
+                                  
+                                  if (!AppConfig.isPremiumUser && !item.isUnlocked) {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      useSafeArea: false,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) => RecognitionSheet(aiData: aiData, scanId: item.id),
+                                    );
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ResultsScreen(aiData: aiData),
+                                      ),
+                                    );
+                                  }
                                 },
                               ),
                             ),

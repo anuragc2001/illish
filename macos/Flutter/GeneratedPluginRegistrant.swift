@@ -12,6 +12,7 @@ import firebase_auth
 import firebase_core
 import firebase_remote_config
 import firebase_storage
+import flutter_image_compress_macos
 import flutter_inappwebview_macos
 import gal
 import geolocator_apple
@@ -30,6 +31,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   FLTFirebaseCorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCorePlugin"))
   FirebaseRemoteConfigPlugin.register(with: registry.registrar(forPlugin: "FirebaseRemoteConfigPlugin"))
   FLTFirebaseStoragePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseStoragePlugin"))
+  FlutterImageCompressMacosPlugin.register(with: registry.registrar(forPlugin: "FlutterImageCompressMacosPlugin"))
   InAppWebViewFlutterPlugin.register(with: registry.registrar(forPlugin: "InAppWebViewFlutterPlugin"))
   GalPlugin.register(with: registry.registrar(forPlugin: "GalPlugin"))
   GeolocatorPlugin.register(with: registry.registrar(forPlugin: "GeolocatorPlugin"))

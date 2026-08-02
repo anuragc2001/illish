@@ -41,7 +41,7 @@ class DBService {
     return savedPath;
   }
 
-  static Future<void> saveScan(Map<String, dynamic> aiData, {bool isBookmark = false}) async {
+  static Future<int> saveScan(Map<String, dynamic> aiData, {bool isBookmark = false}) async {
     final now = DateTime.now();
     final record = ScanRecord()
       ..id = now.millisecondsSinceEpoch
@@ -58,7 +58,8 @@ class DBService {
       ..suggestedPrice = aiData['suggestedPrice']?.toString()
       ..marketAvgPrice = aiData['marketAvgPrice']?.toString()
       ..timestamp = now
-      ..isBookmark = isBookmark;
+      ..isBookmark = isBookmark
+      ..isUnlocked = AppConfig.isPremiumUser;
 
     await isar.writeTxn(() async {
       await isar.scanRecords.put(record);
@@ -71,7 +72,7 @@ class DBService {
             .filter()
             .isBookmarkEqualTo(false)
             .sortByTimestampDesc()
-            .offset(10)
+            .offset(15)
             .findAll();
         if (overflowScans.isNotEmpty) {
           final toDelete = overflowScans.map((e) => e.id).toList();
@@ -79,8 +80,22 @@ class DBService {
           
           for (var scan in overflowScans) {
             await _cleanupImageIfUnused(scan.imagePath);
+            await SyncService.archiveScanRecord(scan.id); // Deletes cloud image & flags as archived
           }
         }
+      }
+    });
+    
+    return record.id;
+  }
+
+  static Future<void> unlockScan(int id) async {
+    await isar.writeTxn(() async {
+      final record = await isar.scanRecords.get(id);
+      if (record != null) {
+        record.isUnlocked = true;
+        await isar.scanRecords.put(record);
+        SyncService.upsertScanRecord(record);
       }
     });
   }
@@ -152,8 +167,8 @@ class DBService {
       await isar.scanRecords.delete(id);
     });
     
-    // Async fire-and-forget sync delete
-    SyncService.deleteScanRecord(id);
+    // Async fire-and-forget sync archive (soft delete)
+    SyncService.archiveScanRecord(id);
     
     await _cleanupImageIfUnused(imagePath);
   }
@@ -164,6 +179,7 @@ class DBService {
       await isar.scanRecords.filter().isBookmarkEqualTo(false).deleteAll();
     });
     for (var scan in scans) {
+      SyncService.archiveScanRecord(scan.id); // Soft delete from Firebase cloud
       await _cleanupImageIfUnused(scan.imagePath);
     }
   }

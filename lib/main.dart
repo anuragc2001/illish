@@ -11,6 +11,8 @@ import 'services/remote_config_service.dart';
 import 'screens/camera_screen.dart';
 import 'services/db_service.dart';
 import 'services/admob_service.dart';
+import 'services/auth_service.dart';
+import 'services/sync_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -48,6 +50,10 @@ void main() async {
   }
 
   Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+
+  if (AuthService.currentUser != null && !AuthService.currentUser!.isAnonymous) {
+    SyncService.startRealtimeSync();
+  }
 
   runApp(const IllishApp());
 }
