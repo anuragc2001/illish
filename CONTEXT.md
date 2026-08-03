@@ -119,6 +119,21 @@ Building on the v1.0 foundation, v2.0 focused on monetization, native payments, 
 - **Cancelable AI Operations**: AI scan requests are wrapped in `CancelableOperation` from `package:async`, allowing users to abort in-flight Gemini API calls and immediately retake photos.
 - **Comprehensive Error Handling**: Mock mode now cycles through 6 distinct states (3 freshness tiers + invalid image + offline + timeout) for thorough UI testing. Online mode handles `TimeoutException`, `SocketException`, and generic API errors with distinct user-facing messages.
 
+## Implemented Features (v2.1 Journey)
+v2.1 focused on closing monetization loopholes, multi-device reliability, anonymous user conversion, and cloud data integrity:
+
+- **Locked Scan State (Monetization Paywall Fix)**: Closed a critical bypass where users could access full scan results from Recent Scans history without going through the ad/paywall flow. Added `isUnlocked: bool` to the `ScanRecord` Isar schema. New scans default to `isUnlocked = false` (unless the user is already premium). In the Recent Scans list, locked items display a lock badge on the thumbnail. Tapping a locked scan now forces the `RecognitionSheet` (the ad/upgrade gate) rather than skipping directly to `ResultsScreen`.
+- **Persistent Unlock Flow**: When a user successfully watches a Rewarded Interstitial Ad or upgrades to premium via `PaymentSheet`, `DBService.unlockScan(id)` is called. This persists the unlocked state to both the local Isar database and Firestore, meaning the unlock is permanent and cross-device.
+- **Multi-Device Real-Time Sync Fix (Bug Fix)**: Fixed a bug where scans taken on Phone A would not appear on Phone B's Recent Scans list unless the user signed out and back in. `SyncService.startRealtimeSync()` is now invoked at app launch in `main.dart` if a user session exists. The `SavedItemsSheet` subscribes to `DBService.isar.scanRecords.watchLazy()` so any background Firestore sync immediately reflects in the UI without manual refresh.
+- **Persistent Ad Counter (Ad Bypass Fix)**: The interstitial ad counter (`_resultsBackClickCount`) was previously held in-memory and reset every time the app was killed, allowing users to bypass ads with a force-close. The counter is now persisted via `SharedPreferences` so it survives app restarts and accumulates across sessions.
+- **Anonymous-to-Signed-In Conversion Modal**: A premium-feel glassmorphic "Save Your Scans" modal is shown to anonymous users on their 1st scan and every 4th scan thereafter (e.g. 5th, 9th, 13th). It appears 2 seconds after the `ResultsScreen` loads so it doesn't interrupt the AI result reveal. Tapping "Go to Profile to Sign In" dismisses the modal and pushes `ProfileScreen`. After signing in, the user returns directly to their `ResultsScreen` without being redirected to the home camera screen.
+- **Soft Delete / Cloud Archiving**: Scan deletion (swipe-to-delete and "Clear All") no longer hard-deletes Firestore documents. Instead, `SyncService.archiveScanRecord(id)` is called which: (1) deletes the image from Firebase Storage to save costs, and (2) sets `isArchived: true` on the Firestore document so geospatial/heatmap analytics data is permanently preserved. The local Isar record and device image file are still fully removed.
+- **Image Compression Before AI Call**: Confirmed that `FlutterImageCompress.compressAndGetFile` runs before every Gemini API call, resizing images to a max 1080×1080 JPEG at 80% quality. This applies to both camera captures and gallery imports.
+
+## Pending / In Progress
+- **Phone OTP Authentication**: A secondary sign-in method (SMS OTP via Firebase Phone Auth) to complement the existing Google Sign-In, for users who do not have a Google account on their device.
+- **One-Time Migration for Legacy Scans**: Older scans created before `isUnlocked` was added to the schema default to `false`. A one-time migration in `DBService.initialize()` should mark all pre-existing scans as `isUnlocked = true` to avoid showing the lock icon on a user's historical data.
+
 ## Design System & Vibe
 
 **Theme:** Pure dark mode, true black background `#000000`.

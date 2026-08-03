@@ -143,20 +143,85 @@ Allow users to share a beautifully designed, branded scan card via WhatsApp, Ins
 
 ---
 
-## 11. Image Compression Before API Call (NEW)
+## 11. [COMPLETED] Image Compression Before API Call
 
-### Status: NOT STARTED (Quick Win)
+### Status: COMPLETED
 ### Concept
 Phone cameras capture 12-48MP images. Sending a raw 8MB photo to Gemini wastes bandwidth (critical in wet markets with poor signal) and increases latency.
 
-### Technical Approach
-- Compress images to ~1MB before sending to Gemini.
-- Use `image` package or `flutter_image_compress`.
-- Target 1024x1024 resolution — more than enough for fish identification.
+### Implemented Solution
+- `FlutterImageCompress.compressAndGetFile` resizes all photos (camera captures & gallery imports) to max **1080x1080 JPEG at 80% quality** before sending to Gemini API.
+- Files are saved to local `documentsPath` and clean compressed paths are passed to `AIService`.
 
 ---
 
-## 12. Haptic Feedback & Sound Design (NEW)
+## 12. [COMPLETED] Locked Scan History Paywall State
+
+### Status: COMPLETED
+### Concept
+Prevent users from bypassing the ad/paywall gate by accessing full scan results from Recent Scans history.
+
+### Implemented Solution
+- Added `isUnlocked: bool` to `ScanRecord` schema (Isar + Firestore).
+- New scans default to `isUnlocked = false` (unless user is premium).
+- Lock icon badge renders on Recent Scans list thumbnails for locked items.
+- Tapping a locked scan forces the `RecognitionSheet` ad/upgrade gate.
+- Successful ad completion or premium upgrade calls `DBService.unlockScan(id)`, permanently unlocking the scan across local Isar and cloud Firestore.
+
+---
+
+## 13. [COMPLETED] Multi-Device Real-Time Sync & Live UI Refresh
+
+### Status: COMPLETED
+### Concept
+Scans taken on Phone A were not appearing on Phone B's Recent Scans list without manual sign-out/sign-in.
+
+### Implemented Solution
+- `SyncService.startRealtimeSync()` starts at app launch in `main.dart` if a user session exists.
+- `SavedItemsSheet` subscribes to `DBService.isar.scanRecords.watchLazy()` so background Firestore syncs automatically trigger a live UI refresh without restarting or swiping.
+
+---
+
+## 14. [COMPLETED] Persistent Ad Counter (Force-Close Bypass Fix)
+
+### Status: COMPLETED
+### Concept
+The interstitial ad counter (`_resultsBackClickCount`) was stored in memory, resetting to 0 on force-close.
+
+### Implemented Solution
+- `AdMobService` now persists `_resultsBackClickCount` in `SharedPreferences`.
+- Accumulates across app restarts so users cannot bypass ads by force-closing the app.
+
+---
+
+## 15. [COMPLETED] Anonymous-to-Signed-In Conversion Modal
+
+### Status: COMPLETED
+### Concept
+Encourage anonymous users to sign in to save scan history.
+
+### Implemented Solution
+- Premium glassmorphic "Save Your Scans" modal appears on 1st scan and every 4th scan thereafter (1st, 5th, 9th...).
+- Appears 2 seconds after `ResultsScreen` loads.
+- "Go to Profile to Sign In" button pushes `ProfileScreen` without discarding current result context. User returns to `ResultsScreen` after sign-in.
+
+---
+
+## 16. [COMPLETED] Soft Delete / Cloud Archiving for Heatmaps
+
+### Status: COMPLETED
+### Concept
+Hard-deleting Firestore scan documents destroys valuable geospatial fish distribution analytics.
+
+### Implemented Solution
+- Deleting a scan (swipe or "Clear All") calls `SyncService.archiveScanRecord(id)`.
+- Image is deleted from Firebase Storage (saves storage cost).
+- Firestore document remains flagged with `isArchived: true` for heatmap data retention.
+- Local Isar record and image file are fully removed.
+
+---
+
+## 17. Haptic Feedback & Sound Design
 
 ### Status: NOT STARTED (Quick Win)
 ### Concept
@@ -169,7 +234,7 @@ The app feels "silent". Premium apps use subtle haptics and sounds to provide ta
 
 ---
 
-## 13. Onboarding Carousel (NEW)
+## 18. Onboarding Carousel
 
 ### Status: NOT STARTED (Quick Win)
 ### Concept
@@ -182,69 +247,57 @@ First-time users may not understand the app's purpose or flow. A simple 3-slide 
 
 ---
 
-## 14. Multi-Fish Stall Scanning (NEW)
+## 19. Phone OTP Authentication
+
+### Status: PENDING / IN PROGRESS (High Priority)
+### Concept
+SMS-based sign-in via Firebase Phone Auth as a secondary sign-in method for users who do not have a Google account on their device.
+
+---
+
+## 20. Legacy Scan Migration
+
+### Status: PENDING (Medium Priority)
+### Concept
+Pre-existing scans created before `isUnlocked` was added to `ScanRecord` default to `false`. Add a one-time migration in `DBService.initialize()` to set `isUnlocked = true` on historical records.
+
+---
+
+## 21. Multi-Fish Stall Scanning
 
 ### Status: NOT STARTED (Premium Feature)
 ### Concept
-At a wet market, a vendor's stall has 5-10 different fish laid out. Right now the user must scan each one individually. A "stall scan" mode would be a massive differentiator.
-
-### What to Build
-- A "Stall Mode" toggle on the camera screen.
-- Capture one wide photo of the entire stall.
-- Use Gemini's vision to identify *all* visible species in the frame.
-- Return a scrollable card list: each fish with its local name, estimated freshness, and price range.
-- This is a **premium feature** for the paid tier.
+Capture one wide photo of an entire wet market stall with 5-10 fish laid out. Use Gemini vision to return a scrollable list of all detected species, local names, freshness ratings, and price ranges.
 
 ---
 
-## 15. Scan History Timeline with Stats (NEW)
+## 22. Scan History Timeline with Stats
 
 ### Status: NOT STARTED
 ### Concept
-Transform utility into habit by showing users their scanning patterns over time.
-
-### What to Build
-- A full-screen "My Scans" page (not just the bottom sheet).
-- Calendar heatmap showing scan frequency (like GitHub contributions).
-- Stats: "You've scanned 47 fish this month", "Most scanned: Rohu (12 times)".
-- Filter by: species, freshness rating, date range.
-- Share stats as an image (social virality).
+Full-screen scan statistics, GitHub-style calendar heatmap, species breakdown, and shareable stat cards.
 
 ---
 
-## 16. Seasonal Fish Calendar (NEW)
+## 23. Seasonal Fish Calendar
 
 ### Status: NOT STARTED
 ### Concept
-Different fish are in season at different times. A calendar helps users know what to expect at the market *before* they go.
-
-### What to Build
-- A monthly calendar view showing which species are in season for the user's region.
-- "Best fish to buy this week in Kolkata: Hilsa, Pabda, Chingri".
-- Push notifications: *"Hilsa season starts next week! 🐟"*.
+Monthly regional calendar showing in-season fish and regional market notifications.
 
 ---
 
-## 17. Vendor Trust Score / Profiles (NEW)
+## 24. Vendor Trust Score / Profiles
 
 ### Status: NOT STARTED
 ### Concept
-Users go to the same vendors repeatedly. If they could rate and track vendors, it adds massive stickiness.
-
-### What to Build
-- After a scan, prompt: *"Which vendor sold this?"* (optional text input or GPS-tagged stall).
-- Track freshness scores per vendor over time.
-- "Your fishmonger's average freshness: 87% 🟢".
-- Anonymous, aggregated vendor ratings visible to nearby users.
+Track vendor stall locations, freshness averages over time, and community vendor trust ratings.
 
 ---
 
-## 18. kMockMode Should Be Set to `false` for Production (IMPORTANT)
+## 25. kMockMode Should Be Set to `false` for Production (IMPORTANT)
 
 ### Status: ACTION REQUIRED before release
 ### Concept
-`AppConfig.kMockMode` is currently set to `true` in `lib/config/app_config.dart`. This means the app runs entirely on simulated offline data and never hits the real Gemini API.
+`AppConfig.kMockMode` is currently set to `true` in `lib/config/app_config.dart`. Must be set to `false` before real testing or App Store submission.
 
-### Action
-- Before any production build or TestFlight/Play Store submission, set `kMockMode = false`.
-- Consider driving this via build flavors (`prod` vs `exp`) or `.env` to avoid accidental releases in mock mode.

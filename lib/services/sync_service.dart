@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'db_service.dart';
 import '../core/models/scan_record.dart';
+import '../core/models/daily_scan_aggregate.dart';
 import '../config/app_config.dart';
 
 class SyncService {
@@ -59,6 +60,36 @@ class SyncService {
       
     } catch (e) {
       debugPrint("Error syncing to Firestore: $e");
+    }
+  }
+
+  /// Syncs the aggregate data to Firebase
+  static Future<void> upsertDailyAggregate(DailyScanAggregate aggregate) async {
+    if (_uid == null) return;
+    try {
+      final dateStr = aggregate.date.toIso8601String().split('T').first;
+      final docRef = _firestore.collection('users').doc(_uid).collection('aggregates').doc(dateStr);
+      
+      await docRef.set({
+        'date': aggregate.date.toIso8601String(),
+        'totalScans': aggregate.totalScans,
+        'topFishName': aggregate.topFishName,
+        'fishCounts': aggregate.fishCounts,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint("Error syncing aggregate to Firestore: $e");
+    }
+  }
+
+  /// Marks a scan as permanently unlocked in Firestore
+  static Future<void> unlockScanInCloud(int id) async {
+    if (_uid == null) return;
+    try {
+      await _firestore.collection('users').doc(_uid).collection('scans').doc(id.toString()).set({
+        'isUnlocked': true,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint("Error unlocking scan in Firestore: $e");
     }
   }
 
@@ -115,16 +146,86 @@ class SyncService {
     }
   }
 
+  /// Fetches archived scans on-demand from Firebase for a specific date
+  static Future<List<ScanRecord>> fetchArchivedScansForDate(DateTime date) async {
+    if (_uid == null) return [];
+    
+    try {
+      // Find the start and end of the day in local time
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+      
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(_uid)
+          .collection('scans')
+          .where('timestamp', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
+          .where('timestamp', isLessThan: endOfDay.toIso8601String())
+          .get();
+          
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return ScanRecord()
+          ..id = data['id'] ?? 0
+          ..imagePath = data['imagePath']
+          ..englishName = data['englishName']
+          ..localName = data['localName']
+          ..region = data['region']
+          ..freshnessScore = data['freshnessScore']
+          ..freshnessStatus = data['freshnessStatus']
+          ..freshnessEvidence = data['freshnessEvidence']
+          ..bestCuts = List<String>.from(data['bestCuts'] ?? [])
+          ..idealFor = List<String>.from(data['idealFor'] ?? [])
+          ..trickeryTips = List<String>.from(data['trickeryTips'] ?? [])
+          ..suggestedPrice = data['suggestedPrice']
+          ..marketAvgPrice = data['marketAvgPrice']
+          ..timestamp = data['timestamp'] != null ? DateTime.parse(data['timestamp']) : DateTime.now()
+          ..isBookmark = data['isBookmark'] ?? false
+          ..isUnlocked = data['isUnlocked'] ?? false;
+      }).toList();
+    } catch (e) {
+      debugPrint("Error fetching archived scans: $e");
+      return [];
+    }
+  }
+
   /// Call this after logging in on a new device to fetch history
   static Future<void> syncFromCloudToLocal() async {
     if (_uid == null) return;
     
+    bool hasCloudAggregates = false;
+    
+    // 1. Sync Aggregates from Firestore if available
+    try {
+      final aggSnapshot = await _firestore.collection('users').doc(_uid).collection('aggregates').get();
+      if (aggSnapshot.docs.isNotEmpty) {
+        hasCloudAggregates = true;
+        for (var doc in aggSnapshot.docs) {
+          final data = doc.data();
+          final date = data['date'] != null ? DateTime.parse(data['date']) : null;
+          if (date == null) continue;
+          
+          final agg = DailyScanAggregate()
+            ..date = date
+            ..totalScans = data['totalScans'] ?? 0
+            ..topFishName = data['topFishName']
+            ..fishCounts = List<String>.from(data['fishCounts'] ?? []);
+            
+          await DBService.isar.writeTxn(() async {
+            await DBService.isar.dailyScanAggregates.put(agg);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error syncing aggregates from cloud: $e");
+    }
+
+    // 2. Sync Scans from Firestore
     try {
       final snapshot = await _firestore.collection('users').doc(_uid).collection('scans').get();
       
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        if (data['isArchived'] == true) continue;
         
         final record = ScanRecord()
           ..id = data['id'] ?? Isar.autoIncrement
@@ -144,7 +245,16 @@ class SyncService {
           ..isBookmark = data['isBookmark'] ?? false
           ..isUnlocked = data['isUnlocked'] ?? false;
 
-        // Save to local Isar database
+        // If cloud aggregates did not exist, compute aggregates on the fly from scan history
+        if (!hasCloudAggregates) {
+          await DBService.isar.writeTxn(() async {
+            await DBService.updateDailyAggregate(record);
+          });
+        }
+
+        if (data['isArchived'] == true) continue;
+
+        // Save active scan to local Isar database
         await DBService.isar.writeTxn(() async {
           await DBService.isar.scanRecords.put(record);
         });
@@ -153,7 +263,7 @@ class SyncService {
         await _downloadImageIfNeeded(record.id, record.imagePath);
       }
     } catch (e) {
-      debugPrint("Error syncing from cloud: $e");
+      debugPrint("Error syncing scans from cloud: $e");
     }
   }
 

@@ -154,3 +154,38 @@ The `callbackDispatcher` in `main.dart` is initialized but the body is a TODO. T
 | Uncomment production AdMob IDs in `.env` | Currently using test IDs; swap when ready for production ads |
 | UPI return handshake | Currently launches app only; future: auto-redirect with transaction result |
 | Workmanager cloud sync | Stub exists; implement when backend (Supabase/Firebase) is chosen |
+
+---
+
+## 7. v2.1 Session — Monetization Hardening, Sync Reliability & User Conversion
+
+*Completed: August 3, 2026*
+
+### Fixes & Features
+
+| Feature | Files Changed | Detail |
+|:---|:---|:---|
+| **Locked Scan Paywall** | `scan_record.dart`, `db_service.dart`, `sync_service.dart`, `camera_screen.dart`, `recognition_sheet.dart`, `payment_sheet.dart` | Added `isUnlocked: bool` to `ScanRecord`. New scans default to `false`. Lock icon badge shown on thumbnails in Recent Scans for locked items. Tapping a locked scan forces the `RecognitionSheet` gate instead of bypassing to `ResultsScreen`. |
+| **Persistent Unlock** | `db_service.dart`, `payment_sheet.dart` | `DBService.unlockScan(id)` is called on successful ad watch or premium upgrade. Persisted to Isar + Firestore — permanent and cross-device. |
+| **Multi-Device UI Sync Fix** | `main.dart`, `camera_screen.dart` | `SyncService.startRealtimeSync()` now fires at app launch if a session exists. `SavedItemsSheet` uses `isar.scanRecords.watchLazy()` to auto-refresh the UI on any background Firestore sync — no more sign-out/sign-in to see the other device's scans. |
+| **Persistent Ad Counter** | `admob_service.dart` | `_resultsBackClickCount` moved from in-memory to `SharedPreferences`. Accumulated across app restarts — users can no longer bypass the every-3rd-click interstitial ad by force-closing the app. |
+| **Anonymous Conversion Modal** | `results_screen.dart` | Glassmorphic "Save Your Scans" modal shown on 1st scan and every 4th scan after (1st, 5th, 9th...). Appears 2 seconds post-result-load. Button pushes `ProfileScreen` without losing the current `ResultsScreen` context. |
+| **Soft Delete / Cloud Archiving** | `db_service.dart`, `sync_service.dart` | `deleteScan` and `clearRecentScans` now call `SyncService.archiveScanRecord(id)` instead of hard-deleting. Firebase Storage image is deleted (cost savings). Firestore document kept with `isArchived: true` for heatmap analytics. |
+| **Clear All Cloud Sync Fix** | `db_service.dart` | `clearRecentScans` was wiping local Isar records but not triggering any cloud sync. Now correctly calls `archiveScanRecord` for each deleted scan. |
+
+### Decisions Made
+
+| Decision | Rationale |
+|:---|:---|
+| Redirect to `ProfileScreen` instead of inline Google Sign-In in modal | Simpler, more reliable. User returns to `ResultsScreen` after signing in. No complex auth state inside a dialog. |
+| Soft delete (archive) instead of hard delete | Preserves geospatial fish scan data for future heatmap feature while still freeing Storage costs. |
+| `isUnlocked = false` default for new scans | Enforces the paywall for all non-premium users consistently. Premium users get `true` at save time. |
+| Ad counter in `SharedPreferences` | Prevents force-close bypass — counter now survives restarts and accumulates across sessions. |
+
+### Pending from This Session
+
+| Item | Priority | Notes |
+|:---|:---|:---|
+| **Phone OTP Auth** | High | SMS-based sign-in via Firebase Phone Auth for non-Google users |
+| **Legacy Scan Migration** | Medium | One-time `DBService.initialize()` migration to set `isUnlocked = true` on pre-existing scans |
+

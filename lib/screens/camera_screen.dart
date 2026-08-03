@@ -1524,7 +1524,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                   style: GoogleFonts.inter(color: Colors.white),
                                 ),
                                 subtitle: Text(
-                                  '${item.localName ?? ''} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh',
+                                  '${item.localName ?? ''} • ${DBService.formatAmPm(item.timestamp)} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh',
                                   style: GoogleFonts.inter(
                                     color: Colors.white54,
                                     fontSize: 12,

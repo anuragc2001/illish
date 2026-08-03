@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../core/models/scan_record.dart';
+import '../core/models/daily_scan_aggregate.dart';
 import '../core/models/recipe_cache.dart';
 import '../config/app_config.dart';
 import 'sync_service.dart';
@@ -13,9 +14,25 @@ class DBService {
     final dir = await getApplicationDocumentsDirectory();
     AppConfig.documentsPath = dir.path;
     isar = await Isar.open(
-      [ScanRecordSchema, RecipeCacheSchema],
+      [ScanRecordSchema, RecipeCacheSchema, DailyScanAggregateSchema],
       directory: dir.path,
     );
+    
+    await _migrateLegacyScansToAggregates();
+  }
+
+  static Future<void> _migrateLegacyScansToAggregates() async {
+    final hasAggregates = await isar.dailyScanAggregates.count() > 0;
+    if (hasAggregates) return; // Only run once
+    
+    final allScans = await isar.scanRecords.where().findAll();
+    if (allScans.isEmpty) return;
+    
+    await isar.writeTxn(() async {
+      for (var scan in allScans) {
+        await updateDailyAggregate(scan);
+      }
+    });
   }
 
   static String? getImagePath(String? savedPath) {
@@ -64,21 +81,27 @@ class DBService {
     await isar.writeTxn(() async {
       await isar.scanRecords.put(record);
       
+      // Update Daily Aggregate
+      await updateDailyAggregate(record);
+      
       // Async fire-and-forget sync to Firestore
       SyncService.upsertScanRecord(record);
       
       if (!isBookmark) {
-        final overflowScans = await isar.scanRecords
+        // Retain scans on a 30-day rolling basis.
+        // Anything older than 30 days from right now is archived.
+        final cutoffDate = now.subtract(const Duration(days: 30));
+        final oldScans = await isar.scanRecords
             .filter()
             .isBookmarkEqualTo(false)
-            .sortByTimestampDesc()
-            .offset(15)
+            .timestampLessThan(cutoffDate)
             .findAll();
-        if (overflowScans.isNotEmpty) {
-          final toDelete = overflowScans.map((e) => e.id).toList();
+            
+        if (oldScans.isNotEmpty) {
+          final toDelete = oldScans.map((e) => e.id).toList();
           await isar.scanRecords.deleteAll(toDelete);
           
-          for (var scan in overflowScans) {
+          for (var scan in oldScans) {
             await _cleanupImageIfUnused(scan.imagePath);
             await SyncService.archiveScanRecord(scan.id); // Deletes cloud image & flags as archived
           }
@@ -95,9 +118,10 @@ class DBService {
       if (record != null) {
         record.isUnlocked = true;
         await isar.scanRecords.put(record);
-        SyncService.upsertScanRecord(record);
       }
     });
+    // Always mark as unlocked in cloud (even if archived/not in local DB)
+    await SyncService.unlockScanInCloud(id);
   }
 
   static Future<List<ScanRecord>> getRecentScans({int offset = 0, int limit = 15}) async {
@@ -188,6 +212,7 @@ class DBService {
     final scans = await isar.scanRecords.where().findAll();
     await isar.writeTxn(() async {
       await isar.scanRecords.clear();
+      await isar.dailyScanAggregates.clear();
     });
     for (var scan in scans) {
       final absolutePath = getImagePath(scan.imagePath);
@@ -209,5 +234,75 @@ class DBService {
     await isar.writeTxn(() async {
       await isar.recipeCaches.put(cache);
     });
+  }
+
+  static String formatAmPm(DateTime dt) {
+    final local = dt.toLocal();
+    int hour = local.hour;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+    return '$hour:$minute $period';
+  }
+
+  static String normalizeFishName(String? name) {
+    if (name == null || name.isEmpty) return 'Unknown';
+    // Remove anything in parentheses
+    String normalized = name.replaceAll(RegExp(r'\s*\(.*\)'), '').trim();
+    if (normalized.isEmpty) return name.trim();
+    // Capitalize first letter
+    if (normalized.length > 1) {
+      return normalized[0].toUpperCase() + normalized.substring(1).toLowerCase();
+    }
+    return normalized.toUpperCase();
+  }
+
+  static Future<void> updateDailyAggregate(ScanRecord record) async {
+    final localTime = record.timestamp.toLocal();
+    final dateKey = DateTime(localTime.year, localTime.month, localTime.day);
+    
+    DailyScanAggregate? aggregate = await isar.dailyScanAggregates.filter().dateEqualTo(dateKey).findFirst();
+    if (aggregate == null) {
+      aggregate = DailyScanAggregate()
+        ..date = dateKey
+        ..totalScans = 0
+        ..fishCounts = [];
+    }
+
+    aggregate.totalScans += 1;
+
+    String normalizedName = normalizeFishName(record.englishName);
+    
+    // Parse existing fishCounts
+    Map<String, int> counts = {};
+    for (var fc in aggregate.fishCounts) {
+      final parts = fc.split(':');
+      if (parts.length == 2) {
+        counts[parts[0]] = int.tryParse(parts[1]) ?? 0;
+      }
+    }
+
+    counts[normalizedName] = (counts[normalizedName] ?? 0) + 1;
+
+    // Determine top fish
+    String topFish = normalizedName;
+    int maxCount = 0;
+    List<String> newFishCounts = [];
+    counts.forEach((k, v) {
+      newFishCounts.add('$k:$v');
+      if (v > maxCount) {
+        maxCount = v;
+        topFish = k;
+      }
+    });
+
+    aggregate.fishCounts = newFishCounts;
+    aggregate.topFishName = topFish;
+
+    await isar.dailyScanAggregates.put(aggregate);
+    
+    // Async fire-and-forget sync to Firebase
+    SyncService.upsertDailyAggregate(aggregate);
   }
 }

@@ -403,9 +403,15 @@ class _ResultsScreenState extends State<ResultsScreen>
 
     // Evaluate timestamp and location properly
     final DateTime scanTime = widget.aiData['timestamp'] != null
-        ? DateTime.parse(widget.aiData['timestamp'])
+        ? DateTime.parse(widget.aiData['timestamp']).toLocal()
         : DateTime.now();
-    final timeStr = TimeOfDay.fromDateTime(scanTime).format(context);
+    final localScanTime = scanTime.toLocal();
+    int hour = localScanTime.hour;
+    final minute = localScanTime.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+    final timeStr = '$hour:$minute $period';
 
     // Format date string nicely
     final now = DateTime.now();

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart';
 import 'db_service.dart';
 import 'sync_service.dart';
@@ -56,6 +57,105 @@ class AuthService {
     } catch (e) {
       debugPrint("Google Sign-In Error: $e");
       return null;
+    }
+  }
+
+  static Future<User?> signInWithApple() async {
+    try {
+      final AuthorizationCredentialAppleID appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final OAuthCredential credential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      await SyncService.syncLocalToCloud();
+      await SyncService.syncFromCloudToLocal();
+      SyncService.startRealtimeSync();
+      
+      return userCredential.user;
+    } catch (e) {
+      debugPrint("Apple Sign-In Error: $e");
+      return null;
+    }
+  }
+
+  static Future<User?> signInWithEmail(String email, String password) async {
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      
+      await SyncService.syncLocalToCloud();
+      await SyncService.syncFromCloudToLocal();
+      SyncService.startRealtimeSync();
+      
+      return userCredential.user;
+    } catch (e) {
+      debugPrint("Email Sign-In Error: $e");
+      rethrow;
+    }
+  }
+
+  static Future<User?> signUpWithEmail(String email, String password) async {
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      
+      await SyncService.syncLocalToCloud();
+      await SyncService.syncFromCloudToLocal();
+      SyncService.startRealtimeSync();
+      
+      return userCredential.user;
+    } catch (e) {
+      debugPrint("Email Sign-Up Error: $e");
+      rethrow;
+    }
+  }
+
+  static Future<void> verifyPhoneNumber({
+    required String phoneNumber,
+    required Function(String verificationId) codeSent,
+    required Function(FirebaseAuthException e) verificationFailed,
+  }) async {
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        // Auto-resolution (mostly Android)
+        await _auth.signInWithCredential(credential);
+        await SyncService.syncLocalToCloud();
+        await SyncService.syncFromCloudToLocal();
+        SyncService.startRealtimeSync();
+      },
+      verificationFailed: verificationFailed,
+      codeSent: (String verificationId, int? resendToken) {
+        codeSent(verificationId);
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
+
+  static Future<User?> verifyOTP(String verificationId, String smsCode) async {
+    try {
+      final PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      await SyncService.syncLocalToCloud();
+      await SyncService.syncFromCloudToLocal();
+      SyncService.startRealtimeSync();
+      
+      return userCredential.user;
+    } catch (e) {
+      debugPrint("OTP Verification Error: $e");
+      rethrow;
     }
   }
 
