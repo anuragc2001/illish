@@ -61,4 +61,8 @@ class NotificationService {
   void clearAll() {
     notifications.value = [];
   }
+
+  void remove(String id) {
+    notifications.value = notifications.value.where((n) => n.id != id).toList();
+  }
 }

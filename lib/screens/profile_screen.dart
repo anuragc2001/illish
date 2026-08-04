@@ -253,15 +253,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       valueListenable: NotificationService().notifications,
       builder: (context, notificationsList, child) {
         final count = notificationsList.length;
-        return PopupMenuButton<String>(
-          offset: const Offset(0, 45),
-          color: const Color(0xFF1E2638),
-          constraints: const BoxConstraints(maxWidth: 300),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withOpacity(0.1)),
-          ),
-          icon: Stack(
+        return GestureDetector(
+          onTap: () {
+            showGeneralDialog(
+              context: context,
+              barrierDismissible: true,
+              barrierLabel: 'Dismiss',
+              barrierColor: Colors.black54,
+              transitionDuration: const Duration(milliseconds: 300),
+              pageBuilder: (context, anim1, anim2) => const NotificationDialog(),
+              transitionBuilder: (context, anim1, anim2, child) {
+                return Transform.scale(
+                  scale: Curves.easeOutBack.transform(anim1.value),
+                  alignment: Alignment.topRight,
+                  child: Opacity(
+                    opacity: anim1.value,
+                    child: child,
+                  ),
+                );
+              },
+            );
+          },
+          child: Stack(
             clipBehavior: Clip.none,
             children: [
               const Icon(
@@ -291,118 +304,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
             ],
           ),
-          onSelected: (value) {
-            if (value == 'clear') {
-              NotificationService().clearAll();
-            }
-          },
-          itemBuilder: (BuildContext context) {
-            if (notificationsList.isEmpty) {
-              return <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  enabled: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'No new notifications',
-                      style: GoogleFonts.inter(
-                        color: Colors.white54,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ];
-            }
-
-            final items = <PopupMenuEntry<String>>[];
-            for (var notif in notificationsList) {
-              items.add(
-                PopupMenuItem<String>(
-                  enabled: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(notif.icon, color: AppTheme.neonCyan, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      notif.title,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Text(
-                                    notif.time,
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white38,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                notif.subtitle,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            items.add(const PopupMenuDivider());
-            items.add(
-              PopupMenuItem<String>(
-                value: 'clear',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.clear_all,
-                      color: Colors.white70,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Clear all notifications',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.neonCyan,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-
-            return items;
-          },
         );
       },
     );
@@ -1508,6 +1409,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class NotificationDialog extends StatefulWidget {
+  const NotificationDialog({super.key});
+
+  @override
+  State<NotificationDialog> createState() => _NotificationDialogState();
+}
+
+class _NotificationDialogState extends State<NotificationDialog> {
+  bool _isClearing = false;
+  late List<AppNotification> _localNotifications;
+
+  @override
+  void initState() {
+    super.initState();
+    // Copy the notifications so we can animate them independently
+    _localNotifications = List.from(NotificationService().notifications.value);
+  }
+
+  void _handleClearAll() async {
+    if (_isClearing || _localNotifications.isEmpty) return;
+    setState(() {
+      _isClearing = true;
+    });
+    
+    // Staggered delay is e.g. 100ms * items.length + 300ms duration
+    final totalTimeMs = 300 + (_localNotifications.length * 100);
+    await Future.delayed(Duration(milliseconds: totalTimeMs));
+    
+    NotificationService().clearAll();
+    
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      alignment: Alignment.topRight,
+      insetPadding: EdgeInsets.only(
+        top: MediaQuery.paddingOf(context).top + 60,
+        right: 16,
+        left: 16,
+      ),
+      child: Container(
+        width: 320,
+        clipBehavior: Clip.antiAlias, // PREVENTS OVERFLOW
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2638),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_localNotifications.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No new notifications',
+                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  padding: EdgeInsets.zero,
+                  itemCount: _localNotifications.length,
+                  separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                  itemBuilder: (context, index) {
+                    final notif = _localNotifications[index];
+                    return Dismissible(
+                      key: Key(notif.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        color: Colors.redAccent.withOpacity(0.2),
+                        child: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                      onDismissed: (direction) {
+                        NotificationService().remove(notif.id);
+                        setState(() {
+                          _localNotifications.removeAt(index);
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: Duration(milliseconds: 300 + (index * 100)),
+                        curve: Curves.easeInCubic,
+                        transform: Matrix4.translationValues(
+                          _isClearing ? -MediaQuery.sizeOf(context).width : 0, 0, 0,
+                        ),
+                        child: AnimatedOpacity(
+                          duration: Duration(milliseconds: 200 + (index * 100)),
+                          opacity: _isClearing ? 0.0 : 1.0,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(notif.icon, color: AppTheme.neonCyan, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            notif.title,
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Text(
+                                          notif.time,
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white38,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      notif.subtitle,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (_localNotifications.isNotEmpty)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Divider(color: Colors.white10, height: 1),
+                  InkWell(
+                    onTap: _handleClearAll,
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.clear_all, color: Colors.white70, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Clear all notifications',
+                            style: GoogleFonts.inter(
+                              color: AppTheme.neonCyan,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
