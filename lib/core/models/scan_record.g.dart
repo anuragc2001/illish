@@ -57,43 +57,48 @@ const ScanRecordSchema = CollectionSchema(
       name: r'isBookmark',
       type: IsarType.bool,
     ),
-    r'isSynced': PropertySchema(
+    r'isHidden': PropertySchema(
       id: 8,
+      name: r'isHidden',
+      type: IsarType.bool,
+    ),
+    r'isSynced': PropertySchema(
+      id: 9,
       name: r'isSynced',
       type: IsarType.bool,
     ),
     r'isUnlocked': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'isUnlocked',
       type: IsarType.bool,
     ),
     r'localName': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'localName',
       type: IsarType.string,
     ),
     r'marketAvgPrice': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'marketAvgPrice',
       type: IsarType.string,
     ),
     r'region': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'region',
       type: IsarType.string,
     ),
     r'suggestedPrice': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'suggestedPrice',
       type: IsarType.string,
     ),
     r'timestamp': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'timestamp',
       type: IsarType.dateTime,
     ),
     r'trickeryTips': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'trickeryTips',
       type: IsarType.stringList,
     )
@@ -204,14 +209,15 @@ void _scanRecordSerialize(
   writer.writeStringList(offsets[5], object.idealFor);
   writer.writeString(offsets[6], object.imagePath);
   writer.writeBool(offsets[7], object.isBookmark);
-  writer.writeBool(offsets[8], object.isSynced);
-  writer.writeBool(offsets[9], object.isUnlocked);
-  writer.writeString(offsets[10], object.localName);
-  writer.writeString(offsets[11], object.marketAvgPrice);
-  writer.writeString(offsets[12], object.region);
-  writer.writeString(offsets[13], object.suggestedPrice);
-  writer.writeDateTime(offsets[14], object.timestamp);
-  writer.writeStringList(offsets[15], object.trickeryTips);
+  writer.writeBool(offsets[8], object.isHidden);
+  writer.writeBool(offsets[9], object.isSynced);
+  writer.writeBool(offsets[10], object.isUnlocked);
+  writer.writeString(offsets[11], object.localName);
+  writer.writeString(offsets[12], object.marketAvgPrice);
+  writer.writeString(offsets[13], object.region);
+  writer.writeString(offsets[14], object.suggestedPrice);
+  writer.writeDateTime(offsets[15], object.timestamp);
+  writer.writeStringList(offsets[16], object.trickeryTips);
 }
 
 ScanRecord _scanRecordDeserialize(
@@ -230,14 +236,15 @@ ScanRecord _scanRecordDeserialize(
   object.idealFor = reader.readStringList(offsets[5]) ?? [];
   object.imagePath = reader.readStringOrNull(offsets[6]);
   object.isBookmark = reader.readBool(offsets[7]);
-  object.isSynced = reader.readBool(offsets[8]);
-  object.isUnlocked = reader.readBool(offsets[9]);
-  object.localName = reader.readStringOrNull(offsets[10]);
-  object.marketAvgPrice = reader.readStringOrNull(offsets[11]);
-  object.region = reader.readStringOrNull(offsets[12]);
-  object.suggestedPrice = reader.readStringOrNull(offsets[13]);
-  object.timestamp = reader.readDateTime(offsets[14]);
-  object.trickeryTips = reader.readStringList(offsets[15]) ?? [];
+  object.isHidden = reader.readBool(offsets[8]);
+  object.isSynced = reader.readBool(offsets[9]);
+  object.isUnlocked = reader.readBool(offsets[10]);
+  object.localName = reader.readStringOrNull(offsets[11]);
+  object.marketAvgPrice = reader.readStringOrNull(offsets[12]);
+  object.region = reader.readStringOrNull(offsets[13]);
+  object.suggestedPrice = reader.readStringOrNull(offsets[14]);
+  object.timestamp = reader.readDateTime(offsets[15]);
+  object.trickeryTips = reader.readStringList(offsets[16]) ?? [];
   return object;
 }
 
@@ -269,7 +276,7 @@ P _scanRecordDeserializeProp<P>(
     case 9:
       return (reader.readBool(offset)) as P;
     case 10:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 11:
       return (reader.readStringOrNull(offset)) as P;
     case 12:
@@ -277,8 +284,10 @@ P _scanRecordDeserializeProp<P>(
     case 13:
       return (reader.readStringOrNull(offset)) as P;
     case 14:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 15:
+      return (reader.readDateTime(offset)) as P;
+    case 16:
       return (reader.readStringList(offset) ?? []) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1587,6 +1596,16 @@ extension ScanRecordQueryFilter
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> isHiddenEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isHidden',
+        value: value,
+      ));
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterFilterCondition> isSyncedEqualTo(
       bool value) {
     return QueryBuilder.apply(this, (query) {
@@ -2578,6 +2597,18 @@ extension ScanRecordQuerySortBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsHidden() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isHidden', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsHiddenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isHidden', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> sortByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
@@ -2754,6 +2785,18 @@ extension ScanRecordQuerySortThenBy
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsHidden() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isHidden', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsHiddenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isHidden', Sort.desc);
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QAfterSortBy> thenByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
@@ -2897,6 +2940,12 @@ extension ScanRecordQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByIsHidden() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isHidden');
+    });
+  }
+
   QueryBuilder<ScanRecord, ScanRecord, QDistinct> distinctByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isSynced');
@@ -3007,6 +3056,12 @@ extension ScanRecordQueryProperty
   QueryBuilder<ScanRecord, bool, QQueryOperations> isBookmarkProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isBookmark');
+    });
+  }
+
+  QueryBuilder<ScanRecord, bool, QQueryOperations> isHiddenProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isHidden');
     });
   }
 

@@ -1,6 +1,7 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import '../core/models/scan_record.dart';
 import '../core/models/daily_scan_aggregate.dart';
 import '../core/models/recipe_cache.dart';
@@ -13,6 +14,7 @@ class DBService {
   static Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
     AppConfig.documentsPath = dir.path;
+    debugPrint('📁 Isar DB Directory: ${dir.path}');
     isar = await Isar.open(
       [ScanRecordSchema, RecipeCacheSchema, DailyScanAggregateSchema],
       directory: dir.path,
@@ -59,6 +61,17 @@ class DBService {
   }
 
   static Future<int> saveScan(Map<String, dynamic> aiData, {bool isBookmark = false}) async {
+    if (aiData['error'] == true) {
+      debugPrint("DBService.saveScan: Error scan detected, skipping DB save.");
+      return -1;
+    }
+    
+    final eName = aiData['englishName']?.toString().trim().toLowerCase() ?? '';
+    if (eName.isEmpty || eName == 'unknown' || eName == 'unknown fish') {
+      debugPrint("DBService.saveScan: Unknown or null fish detected, skipping DB save.");
+      return -1;
+    }
+
     final now = DateTime.now();
     final record = ScanRecord()
       ..id = now.millisecondsSinceEpoch
@@ -127,7 +140,7 @@ class DBService {
   static Future<List<ScanRecord>> getRecentScans({int offset = 0, int limit = 15}) async {
     return await isar.scanRecords
         .filter()
-        .isBookmarkEqualTo(false)
+        .isHiddenEqualTo(false)
         .sortByTimestampDesc()
         .offset(offset)
         .limit(limit)
@@ -138,24 +151,44 @@ class DBService {
     return await isar.scanRecords
         .filter()
         .isBookmarkEqualTo(true)
+        .and()
+        .isHiddenEqualTo(false)
         .sortByTimestampDesc()
         .offset(offset)
         .limit(limit)
         .findAll();
   }
 
-  static Future<bool> isBookmarked(String? imagePath) async {
-    if (imagePath == null) return false;
-    final count = await isar.scanRecords.filter().imagePathEqualTo(imagePath).isBookmarkEqualTo(true).count();
-    return count > 0;
+  static Future<bool> isBookmarked(int? id, String? imagePath) async {
+    if (id != null) {
+      final record = await isar.scanRecords.get(id);
+      if (record != null) return record.isBookmark;
+    }
+    if (imagePath != null) {
+      final count = await isar.scanRecords.filter().imagePathEqualTo(imagePath).isBookmarkEqualTo(true).count();
+      return count > 0;
+    }
+    return false;
   }
 
-  static Future<void> removeBookmark(String? imagePath) async {
-    if (imagePath == null) return;
+  static Future<void> setBookmarkStatus(int? id, String? imagePath, bool status) async {
+    if (id == null && imagePath == null) return;
     await isar.writeTxn(() async {
-      await isar.scanRecords.filter().imagePathEqualTo(imagePath).isBookmarkEqualTo(true).deleteAll();
+      ScanRecord? record;
+      if (id != null) {
+        record = await isar.scanRecords.get(id);
+      }
+      if (record == null && imagePath != null) {
+        // Fallback to imagePath if id is not available
+        record = await isar.scanRecords.filter().imagePathEqualTo(imagePath).sortByTimestampDesc().findFirst();
+      }
+      
+      if (record != null) {
+        record.isBookmark = status;
+        await isar.scanRecords.put(record);
+        SyncService.upsertScanRecord(record);
+      }
     });
-    await _cleanupImageIfUnused(imagePath);
   }
 
   static Future<void> _cleanupImageIfUnused(String? imagePath) async {
@@ -205,6 +238,36 @@ class DBService {
     for (var scan in scans) {
       SyncService.archiveScanRecord(scan.id); // Soft delete from Firebase cloud
       await _cleanupImageIfUnused(scan.imagePath);
+    }
+  }
+
+  static Future<void> hideRecentScans() async {
+    final scans = await isar.scanRecords.filter().isBookmarkEqualTo(false).and().isHiddenEqualTo(false).findAll();
+    await isar.writeTxn(() async {
+      for (var scan in scans) {
+        scan.isHidden = true;
+        await isar.scanRecords.put(scan);
+      }
+    });
+    // Sync the hidden status to Firebase for all updated scans
+    for (var scan in scans) {
+      SyncService.upsertScanRecord(scan);
+    }
+  }
+
+  static Future<void> hideScan(int id) async {
+    ScanRecord? updatedScan;
+    await isar.writeTxn(() async {
+      final scan = await isar.scanRecords.get(id);
+      if (scan != null) {
+        scan.isHidden = true;
+        await isar.scanRecords.put(scan);
+        updatedScan = scan;
+      }
+    });
+    // Sync the hidden status to Firebase
+    if (updatedScan != null) {
+      SyncService.upsertScanRecord(updatedScan!);
     }
   }
 

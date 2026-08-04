@@ -24,6 +24,9 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
   @override
   void initState() {
     super.initState();
+    if (widget.scanId != null) {
+      widget.aiData['id'] = widget.scanId;
+    }
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),

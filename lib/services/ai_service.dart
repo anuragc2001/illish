@@ -122,6 +122,16 @@ class AIService {
       final response = await _provider
           .analyzeFish(imagePath, location)
           .timeout(const Duration(seconds: 15));
+          
+      final eName = response['englishName']?.toString().trim().toLowerCase() ?? '';
+      if (eName.isEmpty || eName == 'unknown' || eName == 'unknown fish') {
+        return {
+          "error": true,
+          "errorType": "invalid_image",
+          "errorReason": "The image doesn't appear to be aquatic life. Please make sure the subject is clear."
+        };
+      }
+          
       return response;
     } on TimeoutException catch (_) {
       return {

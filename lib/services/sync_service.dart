@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'db_service.dart';
 import '../core/models/scan_record.dart';
 import '../core/models/daily_scan_aggregate.dart';
@@ -16,8 +17,37 @@ class SyncService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static StreamSubscription? _syncSubscription;
   static StreamSubscription? _userSubscription;
+  static StreamSubscription? _connectivitySubscription;
+  static StreamSubscription? _aggSubscription;
 
   static String? get _uid => _auth.currentUser?.uid;
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+  
+  static List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) return value.map((e) => e.toString()).toList();
+    if (value is String) return [value];
+    return [];
+  }
+
+  static DateTime _parseTimestamp(dynamic ts) {
+    if (ts == null) return DateTime.now();
+    if (ts is Timestamp) return ts.toDate();
+    if (ts is String) return DateTime.tryParse(ts) ?? DateTime.now();
+    if (ts is int) return DateTime.fromMillisecondsSinceEpoch(ts);
+    try {
+      if (ts.runtimeType.toString().contains('Timestamp')) {
+        return (ts as dynamic).toDate();
+      }
+    } catch (_) {}
+    return DateTime.now();
+  }
 
   /// Call this when a new scan is created or updated locally
   static Future<void> upsertScanRecord(ScanRecord record) async {
@@ -56,7 +86,17 @@ class SyncService {
         'timestamp': record.timestamp.toIso8601String(),
         'isBookmark': record.isBookmark,
         'isUnlocked': record.isUnlocked,
+        'isHidden': record.isHidden,
       }, SetOptions(merge: true));
+      
+      // Update local record as synced
+      await DBService.isar.writeTxn(() async {
+        final localRecord = await DBService.isar.scanRecords.get(record.id);
+        if (localRecord != null) {
+          localRecord.isSynced = true;
+          await DBService.isar.scanRecords.put(localRecord);
+        }
+      });
       
     } catch (e) {
       debugPrint("Error syncing to Firestore: $e");
@@ -191,7 +231,12 @@ class SyncService {
 
   /// Call this after logging in on a new device to fetch history
   static Future<void> syncFromCloudToLocal() async {
-    if (_uid == null) return;
+    debugPrint("=== syncFromCloudToLocal STARTED ===");
+    if (_uid == null) {
+      debugPrint("SYNC ABORTED: User UID is null!");
+      return;
+    }
+    debugPrint("SYNCING FOR UID: $_uid");
     
     bool hasCloudAggregates = false;
     
@@ -223,47 +268,183 @@ class SyncService {
     // 2. Sync Scans from Firestore
     try {
       final snapshot = await _firestore.collection('users').doc(_uid).collection('scans').get();
+      debugPrint("SYNC: Found ${snapshot.docs.length} scans in Firestore for user $_uid.");
       
+      int savedCount = 0;
       for (var doc in snapshot.docs) {
-        final data = doc.data();
-        
-        final record = ScanRecord()
-          ..id = data['id'] ?? Isar.autoIncrement
-          ..imagePath = data['imagePath']
-          ..englishName = data['englishName']
-          ..localName = data['localName']
-          ..region = data['region']
-          ..freshnessScore = data['freshnessScore']
-          ..freshnessStatus = data['freshnessStatus']
-          ..freshnessEvidence = data['freshnessEvidence']
-          ..bestCuts = List<String>.from(data['bestCuts'] ?? [])
-          ..idealFor = List<String>.from(data['idealFor'] ?? [])
-          ..trickeryTips = List<String>.from(data['trickeryTips'] ?? [])
-          ..suggestedPrice = data['suggestedPrice']
-          ..marketAvgPrice = data['marketAvgPrice']
-          ..timestamp = data['timestamp'] != null ? DateTime.parse(data['timestamp']) : DateTime.now()
-          ..isBookmark = data['isBookmark'] ?? false
-          ..isUnlocked = data['isUnlocked'] ?? false;
+        try {
+          final data = doc.data();
+          
+          int? parsedId;
+          if (data['id'] is int && data['id'] != 0) {
+            parsedId = data['id'];
+          } else if (int.tryParse(doc.id) != null) {
+            parsedId = int.tryParse(doc.id);
+          } else if (data['id'] is String && int.tryParse(data['id']) != null) {
+            parsedId = int.tryParse(data['id']);
+          }
+          
+          final record = ScanRecord()
+            ..imagePath = data['imagePath']
+            ..englishName = data['englishName']
+            ..localName = data['localName']
+            ..region = data['region']
+            ..freshnessScore = _parseDouble(data['freshnessScore'])
+            ..freshnessStatus = data['freshnessStatus']?.toString()
+            ..freshnessEvidence = data['freshnessEvidence']?.toString()
+            ..bestCuts = _parseStringList(data['bestCuts'])
+            ..idealFor = _parseStringList(data['idealFor'])
+            ..trickeryTips = _parseStringList(data['trickeryTips'])
+            ..suggestedPrice = data['suggestedPrice']?.toString()
+            ..marketAvgPrice = data['marketAvgPrice']?.toString()
+            ..timestamp = _parseTimestamp(data['timestamp'])
+            ..isBookmark = data['isBookmark'] ?? false
+            ..isUnlocked = data['isUnlocked'] ?? false
+            ..isHidden = data['isHidden'] ?? false
+            ..isSynced = true;
+            
+          if (parsedId != null) {
+            record.id = parsedId;
+          }
 
-        // If cloud aggregates did not exist, compute aggregates on the fly from scan history
-        if (!hasCloudAggregates) {
-          await DBService.isar.writeTxn(() async {
-            await DBService.updateDailyAggregate(record);
-          });
-        }
+          // Skip unknown or null scans
+          final eName = record.englishName?.trim().toLowerCase() ?? '';
+          if (eName.isEmpty || eName == 'unknown' || eName == 'unknown fish') {
+            debugPrint("SYNC SKIP doc ${doc.id}: is unknown/empty ($eName)");
+            continue;
+          }
 
-        if (data['isArchived'] == true) continue;
+          // If cloud aggregates did not exist, compute aggregates on the fly from scan history
+          if (!hasCloudAggregates) {
+            await DBService.isar.writeTxn(() async {
+              await DBService.updateDailyAggregate(record);
+            });
+          }
+
+          // Un-archive in Firebase if it was marked as archived
+          if (data['isArchived'] == true) {
+            await doc.reference.update({'isArchived': false});
+          }
 
         // Save active scan to local Isar database
         await DBService.isar.writeTxn(() async {
           await DBService.isar.scanRecords.put(record);
         });
+        savedCount++;
+        
+        // Log the ID and the count in the terminal
+        debugPrint("SYNC FETCHED [ID: ${record.id}] | Total Synced Count: $savedCount");
         
         // Download image if enabled
         await _downloadImageIfNeeded(record.id, record.imagePath);
+        } catch (innerErr, stackTrace) {
+          debugPrint("SYNC ERROR parsing/syncing doc ${doc.id}: $innerErr");
+          debugPrint("SYNC ERROR STACKTRACE: $stackTrace");
+        }
       }
+      debugPrint("SYNC: Successfully saved $savedCount scans to local DB.");
     } catch (e) {
       debugPrint("Error syncing scans from cloud: $e");
+    }
+  }
+
+  /// Forces a complete rebuild of all DailyScanAggregates by fetching all historical scans from Cloud.
+  /// Populates local Isar DB with ALL scans and pushes rebuilt aggregates back to Firebase.
+  static Future<void> forceRebuildAggregatesFromCloud() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      debugPrint("forceRebuildAggregatesFromCloud: No current user logged in.");
+      return;
+    }
+    final uid = user.uid;
+
+    try {
+      debugPrint("Starting full rebuild from Firestore for user $uid...");
+
+      // 1. Fetch all scans ever made by the user from Firestore
+      final snapshot = await _firestore.collection('users').doc(uid).collection('scans').get();
+      debugPrint("Found ${snapshot.docs.length} scan records in Firestore.");
+
+      if (snapshot.docs.isEmpty) {
+        debugPrint("No cloud scans found for user $uid.");
+        return;
+      }
+
+      // 2. Clear current local aggregates and scans
+      await DBService.isar.writeTxn(() async {
+        await DBService.isar.dailyScanAggregates.clear();
+        await DBService.isar.scanRecords.clear();
+      });
+
+      final List<ScanRecord> recordsToSave = [];
+
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          
+          // Parse ID carefully: try data['id'], then doc.id, fallback to autoIncrement
+          int? parsedId;
+          if (data['id'] is int && data['id'] != 0) {
+            parsedId = data['id'];
+          } else if (int.tryParse(doc.id) != null) {
+            parsedId = int.tryParse(doc.id);
+          }
+
+          final record = ScanRecord()
+            ..imagePath = data['imagePath']
+            ..englishName = data['englishName']
+            ..localName = data['localName']
+            ..region = data['region']
+            ..freshnessScore = _parseDouble(data['freshnessScore'])
+            ..freshnessStatus = data['freshnessStatus']?.toString()
+            ..freshnessEvidence = data['freshnessEvidence']?.toString()
+            ..bestCuts = _parseStringList(data['bestCuts'])
+            ..idealFor = _parseStringList(data['idealFor'])
+            ..trickeryTips = _parseStringList(data['trickeryTips'])
+            ..suggestedPrice = data['suggestedPrice']?.toString()
+            ..marketAvgPrice = data['marketAvgPrice']?.toString()
+            ..timestamp = _parseTimestamp(data['timestamp'])
+            ..isBookmark = data['isBookmark'] ?? false
+            ..isUnlocked = data['isUnlocked'] ?? false;
+
+          // Skip unknown or null scans
+          final eName = record.englishName?.trim().toLowerCase() ?? '';
+          if (eName.isEmpty || eName == 'unknown' || eName == 'unknown fish') continue;
+
+          if (parsedId != null) {
+            record.id = parsedId;
+          }
+
+          recordsToSave.add(record);
+        } catch (innerErr) {
+          debugPrint("Error parsing/rebuilding doc ${doc.id}: $innerErr");
+        }
+      }
+
+      // 3. Save all scan records to local Isar & update aggregates
+      await DBService.isar.writeTxn(() async {
+        await DBService.isar.scanRecords.putAll(recordsToSave);
+        for (var record in recordsToSave) {
+          await DBService.updateDailyAggregate(record);
+        }
+      });
+
+      // 4. Download images for records if needed
+      for (var record in recordsToSave) {
+        if (record.imagePath != null) {
+          await _downloadImageIfNeeded(record.id, record.imagePath);
+        }
+      }
+
+      // 5. Push freshly built aggregates back to Firebase
+      final localAggs = await DBService.isar.dailyScanAggregates.where().findAll();
+      for (var agg in localAggs) {
+        await upsertDailyAggregate(agg);
+      }
+
+      debugPrint("Successfully restored ${recordsToSave.length} records and ${localAggs.length} aggregates to local Isar and pushed to cloud.");
+    } catch (e, stack) {
+      debugPrint("Error force rebuilding aggregates: $e\n$stack");
     }
   }
 
@@ -271,8 +452,11 @@ class SyncService {
   static Future<void> syncLocalToCloud() async {
     if (_uid == null) return;
     try {
-      final localScans = await DBService.isar.scanRecords.where().findAll();
-      for (var scan in localScans) {
+      final unsyncedScans = await DBService.isar.scanRecords.filter().isSyncedEqualTo(false).findAll();
+      if (unsyncedScans.isNotEmpty) {
+        debugPrint("Syncing ${unsyncedScans.length} offline scans to cloud...");
+      }
+      for (var scan in unsyncedScans) {
         await upsertScanRecord(scan);
       }
     } catch (e) {
@@ -287,6 +471,21 @@ class SyncService {
     // Cancel any existing subscription
     _syncSubscription?.cancel();
     _userSubscription?.cancel();
+    _connectivitySubscription?.cancel();
+    
+    // Auto-sync local scans if network becomes available
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      if (!results.contains(ConnectivityResult.none)) {
+        syncLocalToCloud(); // Push any offline scans taken while disconnected
+      }
+    });
+    
+    // Perform an immediate check on boot just in case the app was opened while already online
+    Connectivity().checkConnectivity().then((results) {
+      if (!results.contains(ConnectivityResult.none)) {
+        syncLocalToCloud();
+      }
+    });
     
     // Ensure the user document exists in Firestore
     try {
@@ -314,8 +513,83 @@ class SyncService {
       }
     });
 
-    _syncSubscription = _firestore.collection('users').doc(_uid).collection('scans').snapshots().listen((snapshot) async {
+    _aggSubscription?.cancel();
+
+    // Listen to aggregates in real-time
+    bool isInitialAggSnapshot = true;
+    _aggSubscription = _firestore.collection('users').doc(_uid).collection('aggregates').snapshots().listen((snapshot) async {
+      if (isInitialAggSnapshot) {
+        isInitialAggSnapshot = false;
+        final cloudAggDates = snapshot.docs.map((doc) => DateTime.tryParse(doc.id)).whereType<DateTime>().toSet();
+        await DBService.isar.writeTxn(() async {
+          final localAggs = await DBService.isar.dailyScanAggregates.where().findAll();
+          for (var local in localAggs) {
+            final dateOnly = DateTime(local.date.year, local.date.month, local.date.day);
+            if (!cloudAggDates.any((d) => d.year == dateOnly.year && d.month == dateOnly.month && d.day == dateOnly.day)) {
+              await DBService.isar.dailyScanAggregates.delete(local.id);
+            }
+          }
+        });
+      }
+
       for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
+          final data = change.doc.data();
+          if (data != null && data['date'] != null) {
+            final date = DateTime.tryParse(data['date']);
+            if (date != null) {
+              final agg = DailyScanAggregate()
+                ..date = date
+                ..totalScans = data['totalScans'] ?? 0
+                ..topFishName = data['topFishName']
+                ..fishCounts = List<String>.from(data['fishCounts'] ?? []);
+
+              await DBService.isar.writeTxn(() async {
+                await DBService.isar.dailyScanAggregates.put(agg);
+              });
+            }
+          }
+        } else if (change.type == DocumentChangeType.removed) {
+          final dateStr = change.doc.id;
+          final date = DateTime.tryParse(dateStr);
+          if (date != null) {
+            await DBService.isar.writeTxn(() async {
+              final existing = await DBService.isar.dailyScanAggregates.filter().dateEqualTo(date).findFirst();
+              if (existing != null) {
+                await DBService.isar.dailyScanAggregates.delete(existing.id);
+              }
+            });
+          }
+        }
+      }
+    });
+
+    bool isInitialSnapshot = true;
+    _syncSubscription = _firestore.collection('users').doc(_uid).collection('scans').snapshots().listen((snapshot) async {
+      
+      // Cold Boot Offline Deletion Sync
+      if (isInitialSnapshot) {
+        isInitialSnapshot = false;
+        final cloudIds = snapshot.docs.map((doc) => int.tryParse(doc.id)).whereType<int>().toSet();
+        
+        await DBService.isar.writeTxn(() async {
+          final localSyncedScans = await DBService.isar.scanRecords.filter().isSyncedEqualTo(true).findAll();
+          for (var local in localSyncedScans) {
+            if (!cloudIds.contains(local.id)) {
+              // This record was synced before, but is now missing from the cloud (deleted offline).
+              await DBService.isar.scanRecords.delete(local.id);
+              if (local.imagePath != null) {
+                final localFile = File('${AppConfig.documentsPath}/${local.imagePath}');
+                if (localFile.existsSync()) localFile.deleteSync();
+              }
+              debugPrint("COLD BOOT SYNC: Deleted local record ${local.id} as it was missing from cloud.");
+            }
+          }
+        });
+      }
+
+      for (var change in snapshot.docChanges) {
+        if (change.doc.metadata.hasPendingWrites) continue;
         if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
           final data = change.doc.data();
           if (data == null) continue;
@@ -338,37 +612,55 @@ class SyncService {
             continue;
           }
           
-          final record = ScanRecord()
-            ..id = data['id'] ?? Isar.autoIncrement
-            ..imagePath = data['imagePath']
-            ..englishName = data['englishName']
-            ..localName = data['localName']
-            ..region = data['region']
-            ..freshnessScore = data['freshnessScore']
-            ..freshnessStatus = data['freshnessStatus']
-            ..freshnessEvidence = data['freshnessEvidence']
-            ..bestCuts = List<String>.from(data['bestCuts'] ?? [])
-            ..idealFor = List<String>.from(data['idealFor'] ?? [])
-            ..trickeryTips = List<String>.from(data['trickeryTips'] ?? [])
-            ..suggestedPrice = data['suggestedPrice']
-            ..marketAvgPrice = data['marketAvgPrice']
-            ..timestamp = data['timestamp'] != null ? DateTime.parse(data['timestamp']) : DateTime.now()
-            ..isBookmark = data['isBookmark'] ?? false
-            ..isUnlocked = data['isUnlocked'] ?? false;
+          try {
+            final record = ScanRecord()
+              ..id = data['id'] ?? Isar.autoIncrement
+              ..imagePath = data['imagePath']
+              ..englishName = data['englishName']
+              ..localName = data['localName']
+              ..region = data['region']
+              ..freshnessScore = _parseDouble(data['freshnessScore'])
+              ..freshnessStatus = data['freshnessStatus']?.toString()
+              ..freshnessEvidence = data['freshnessEvidence']?.toString()
+              ..bestCuts = _parseStringList(data['bestCuts'])
+              ..idealFor = _parseStringList(data['idealFor'])
+              ..trickeryTips = _parseStringList(data['trickeryTips'])
+              ..suggestedPrice = data['suggestedPrice']?.toString()
+              ..marketAvgPrice = data['marketAvgPrice']?.toString()
+              ..timestamp = _parseTimestamp(data['timestamp'])
+              ..isBookmark = data['isBookmark'] ?? false
+              ..isUnlocked = data['isUnlocked'] ?? false
+              ..isHidden = data['isHidden'] ?? false
+              ..isSynced = true;
 
-          // Save to local Isar database (upsert)
-          await DBService.isar.writeTxn(() async {
-            await DBService.isar.scanRecords.put(record);
-          });
-          
-          // Download image if enabled
-          await _downloadImageIfNeeded(record.id, record.imagePath);
+            // Skip unknown scans
+            final eName = record.englishName?.toLowerCase() ?? '';
+            if (eName == 'unknown' || eName == 'unknown fish') continue;
+
+            // Save to local Isar database (upsert)
+            await DBService.isar.writeTxn(() async {
+              await DBService.isar.scanRecords.put(record);
+            });
+            
+            // Download image if enabled
+            await _downloadImageIfNeeded(record.id, record.imagePath);
+          } catch (innerErr) {
+            debugPrint("Error parsing/syncing doc in realtime listener: $innerErr");
+          }
         } else if (change.type == DocumentChangeType.removed) {
-          final data = change.doc.data();
-          if (data != null && data['id'] != null) {
+          final docId = int.tryParse(change.doc.id);
+          if (docId != null) {
             // Delete locally if deleted from cloud
             await DBService.isar.writeTxn(() async {
-              await DBService.isar.scanRecords.delete(data['id']);
+              final localRecord = await DBService.isar.scanRecords.get(docId);
+              if (localRecord != null) {
+                await DBService.isar.scanRecords.delete(docId);
+                // Clean up the image file too
+                if (localRecord.imagePath != null) {
+                  final localFile = File('${AppConfig.documentsPath}/${localRecord.imagePath}');
+                  if (localFile.existsSync()) localFile.deleteSync();
+                }
+              }
             });
           }
         }
@@ -376,12 +668,15 @@ class SyncService {
     });
   }
 
-  /// Stop the listener (e.g. on sign out)
   static void stopRealtimeSync() {
     _syncSubscription?.cancel();
     _syncSubscription = null;
     _userSubscription?.cancel();
     _userSubscription = null;
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
+    _aggSubscription?.cancel();
+    _aggSubscription = null;
     AppConfig.isPremiumUser = false;
   }
 }

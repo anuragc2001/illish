@@ -24,4 +24,5 @@ class ScanRecord {
   bool isSynced = false;
   bool isBookmark = false;
   bool isUnlocked = false;
+  bool isHidden = false; // Soft-delete for UI
 }

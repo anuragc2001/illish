@@ -196,8 +196,9 @@ class _ResultsScreenState extends State<ResultsScreen>
   }
 
   Future<void> _checkBookmarkStatus() async {
+    final id = widget.aiData['id'] as int?;
     final imagePath = widget.aiData['imagePath'] as String?;
-    final bookmarked = await DBService.isBookmarked(imagePath);
+    final bookmarked = await DBService.isBookmarked(id, imagePath);
     if (mounted) {
       setState(() {
         _isBookmarked = bookmarked;
@@ -878,49 +879,70 @@ class _ResultsScreenState extends State<ResultsScreen>
                                         const SizedBox(width: 12),
                                         GestureDetector(
                                           onTap: () async {
-                                            final imagePath = widget.aiData['imagePath'] as String?;
+                                            final scanId = widget.aiData['id'] as int?;
+                                            final imgPath = widget.aiData['imagePath'] as String?;
+
                                             if (_isBookmarked) {
                                               setState(() => _isBookmarked = false);
-                                              ScaffoldMessenger.of(context).clearSnackBars();
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
                                                 SnackBar(
                                                   content: Row(
                                                     children: [
-                                                      const Icon(Icons.info_outline, color: Colors.black),
-                                                      const SizedBox(width: 8),
+                                                      const Icon(
+                                                        Icons.bookmark_remove,
+                                                        color: Colors.white,
+                                                        size: 20,
+                                                      ),
+                                                      const SizedBox(width: 12),
                                                       Text(
                                                         'Removed from Bookmarks',
-                                                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                                                        style: GoogleFonts.inter(
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.w500),
                                                       ),
                                                     ],
                                                   ),
-                                                  backgroundColor: AppTheme.neonCyan,
-                                                  behavior: SnackBarBehavior.floating,
-                                                  duration: const Duration(milliseconds: 1500),
+                                                  backgroundColor: Colors.redAccent,
+                                                  duration: const Duration(
+                                                      milliseconds: 1500),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
                                                 ),
                                               );
-                                              await DBService.removeBookmark(imagePath);
+                                              await DBService.setBookmarkStatus(scanId, imgPath, false);
                                             } else {
                                               setState(() => _isBookmarked = true);
-                                              ScaffoldMessenger.of(context).clearSnackBars();
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
                                                 SnackBar(
                                                   content: Row(
                                                     children: [
-                                                      const Icon(Icons.check_circle, color: Colors.black),
-                                                      const SizedBox(width: 8),
+                                                      const Icon(
+                                                        Icons.bookmark_added,
+                                                        color: Colors.black,
+                                                        size: 20,
+                                                      ),
+                                                      const SizedBox(width: 12),
                                                       Text(
                                                         'Added to Bookmarks',
-                                                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold),
+                                                        style: GoogleFonts.inter(
+                                                            color: Colors.black,
+                                                            fontWeight:
+                                                                FontWeight.w600),
                                                       ),
                                                     ],
                                                   ),
-                                                  backgroundColor: AppTheme.neonCyan,
-                                                  behavior: SnackBarBehavior.floating,
-                                                  duration: const Duration(milliseconds: 1500),
+                                                  backgroundColor:
+                                                      AppTheme.neonCyan,
+                                                  duration: const Duration(
+                                                      milliseconds: 1500),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
                                                 ),
                                               );
-                                              await DBService.saveScan(widget.aiData, isBookmark: true);
+                                              await DBService.setBookmarkStatus(scanId, imgPath, true);
                                             }
                                           },
                                           child: Icon(

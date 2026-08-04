@@ -17,6 +17,7 @@ import '../core/theme.dart';
 import '../config/app_config.dart';
 import '../services/ai_service.dart';
 import '../services/db_service.dart';
+import '../services/notification_service.dart';
 import 'recognition_sheet.dart';
 import 'results_screen.dart';
 import 'profile_screen.dart';
@@ -345,9 +346,10 @@ class _CameraScreenState extends State<CameraScreen>
     String savedFilename = imagePath.split('/').last;
 
     try {
-      final filename = '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last.replaceAll('.png', '.jpg')}';
+      final filename =
+          '${DateTime.now().millisecondsSinceEpoch}_${imagePath.split('/').last.replaceAll('.png', '.jpg')}';
       final targetPath = '${AppConfig.documentsPath}/$filename';
-      
+
       final compressedFile = await FlutterImageCompress.compressAndGetFile(
         imagePath,
         targetPath,
@@ -356,7 +358,7 @@ class _CameraScreenState extends State<CameraScreen>
         minHeight: 1080,
         format: CompressFormat.jpeg,
       );
-      
+
       if (compressedFile != null) {
         processedPath = compressedFile.path;
         savedFilename = filename;
@@ -470,10 +472,16 @@ class _CameraScreenState extends State<CameraScreen>
     if (result != null) {
       result['imagePath'] = savedFilename;
 
-      final savedId = await DBService.saveScan(
-        result,
-        isBookmark: false,
-      ); // Fix 4: save to history automatically
+      int? savedId;
+      if (result['error'] != true) {
+        savedId = await DBService.saveScan(result, isBookmark: false);
+        result['id'] = savedId;
+      }
+      final eName = result['englishName']?.toString().toLowerCase() ?? '';
+      final isUnknown =
+          eName == 'unknown' ||
+          eName == 'unknown fish' ||
+          result['error'] == true;
 
       setState(() => _isUIHidden = true);
       await showModalBottomSheet(
@@ -674,209 +682,245 @@ class _CameraScreenState extends State<CameraScreen>
                                 child: Align(
                                   alignment: Alignment.centerLeft,
                                   child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 220),
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 220,
+                                    ),
                                     child: GestureDetector(
                                       onTap: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      useSafeArea: false, // Prevents black gaps
-                                      isScrollControlled: true,
-                                      backgroundColor: AppTheme.cardBackground,
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(24),
-                                        ),
-                                      ),
-                                      builder: (context) => SafeArea(
-                                        child: SingleChildScrollView(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(24.0),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  "Select Location",
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                        showModalBottomSheet(
+                                          context: context,
+                                          useSafeArea:
+                                              false, // Prevents black gaps
+                                          isScrollControlled: true,
+                                          backgroundColor:
+                                              AppTheme.cardBackground,
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(24),
+                                            ),
+                                          ),
+                                          builder: (context) => SafeArea(
+                                            child: SingleChildScrollView(
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(
+                                                  24.0,
                                                 ),
-                                                const SizedBox(height: 16),
-                                                ListTile(
-                                                  leading: const Icon(
-                                                    Icons.my_location,
-                                                    color: AppTheme.neonCyan,
-                                                  ),
-                                                  title: Text(
-                                                    "Current Location",
-                                                    style: GoogleFonts.inter(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  subtitle: Text(
-                                                    "Detect using GPS",
-                                                    style: GoogleFonts.inter(
-                                                      color: Colors.white54,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                  onTap: () {
-                                                    Navigator.pop(context);
-                                                    setState(
-                                                      () => _currentLocation =
-                                                          "Locating...",
-                                                    );
-                                                    _initLocation();
-                                                  },
-                                                ),
-                                                const Divider(
-                                                  color: Colors.white10,
-                                                ),
-                                                if (_locationHistory
-                                                    .isNotEmpty) ...[
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 16,
-                                                          vertical: 8,
-                                                        ),
-                                                    child: Text(
-                                                      "RECENT",
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      "Select Location",
                                                       style: GoogleFonts.inter(
-                                                        color: Colors.white38,
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.white,
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                       ),
                                                     ),
-                                                  ),
-                                                  ..._locationHistory.map(
-                                                    (loc) => ListTile(
+                                                    const SizedBox(height: 16),
+                                                    ListTile(
                                                       leading: const Icon(
-                                                        Icons.history,
+                                                        Icons.my_location,
+                                                        color:
+                                                            AppTheme.neonCyan,
+                                                      ),
+                                                      title: Text(
+                                                        "Current Location",
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                      ),
+                                                      subtitle: Text(
+                                                        "Detect using GPS",
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color: Colors
+                                                                  .white54,
+                                                              fontSize: 12,
+                                                            ),
+                                                      ),
+                                                      onTap: () {
+                                                        Navigator.pop(context);
+                                                        setState(
+                                                          () =>
+                                                              _currentLocation =
+                                                                  "Locating...",
+                                                        );
+                                                        _initLocation();
+                                                      },
+                                                    ),
+                                                    const Divider(
+                                                      color: Colors.white10,
+                                                    ),
+                                                    if (_locationHistory
+                                                        .isNotEmpty) ...[
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 16,
+                                                              vertical: 8,
+                                                            ),
+                                                        child: Text(
+                                                          "RECENT",
+                                                          style:
+                                                              GoogleFonts.inter(
+                                                                color: Colors
+                                                                    .white38,
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      ..._locationHistory.map(
+                                                        (loc) => ListTile(
+                                                          leading: const Icon(
+                                                            Icons.history,
+                                                            color:
+                                                                Colors.white54,
+                                                          ),
+                                                          title: Text(
+                                                            loc,
+                                                            style:
+                                                                GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
+                                                          ),
+                                                          onTap: () {
+                                                            setState(
+                                                              () =>
+                                                                  _currentLocation =
+                                                                      loc,
+                                                            );
+                                                            _saveLocationHistory(
+                                                              loc,
+                                                            );
+                                                            _triggerLocationAnimation();
+                                                            Navigator.pop(
+                                                              context,
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
+                                                      const Divider(
+                                                        color: Colors.white10,
+                                                      ),
+                                                    ],
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 8,
+                                                          ),
+                                                      child: Text(
+                                                        "NEARBY CITIES",
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color: Colors
+                                                                  .white38,
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    ListTile(
+                                                      leading: const Icon(
+                                                        Icons.location_city,
                                                         color: Colors.white54,
                                                       ),
                                                       title: Text(
-                                                        loc,
-                                                        style: GoogleFonts.inter(
-                                                          color: Colors.white,
-                                                        ),
+                                                        "Kolkata, West Bengal",
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
                                                       ),
                                                       onTap: () {
                                                         setState(
                                                           () => _currentLocation =
-                                                              loc,
+                                                              "Kolkata, West Bengal",
                                                         );
-                                                        _saveLocationHistory(loc);
+                                                        _saveLocationHistory(
+                                                          "Kolkata, West Bengal",
+                                                        );
                                                         _triggerLocationAnimation();
                                                         Navigator.pop(context);
                                                       },
                                                     ),
-                                                  ),
-                                                  const Divider(
-                                                    color: Colors.white10,
-                                                  ),
-                                                ],
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                        vertical: 8,
-                                                      ),
-                                                  child: Text(
-                                                    "NEARBY CITIES",
-                                                    style: GoogleFonts.inter(
-                                                      color: Colors.white38,
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
+                                                    const SizedBox(height: 16),
+                                                  ],
                                                 ),
-                                                ListTile(
-                                                  leading: const Icon(
-                                                    Icons.location_city,
-                                                    color: Colors.white54,
-                                                  ),
-                                                  title: Text(
-                                                    "Kolkata, West Bengal",
-                                                    style: GoogleFonts.inter(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  onTap: () {
-                                                    setState(
-                                                      () => _currentLocation =
-                                                          "Kolkata, West Bengal",
-                                                    );
-                                                    _saveLocationHistory(
-                                                      "Kolkata, West Bengal",
-                                                    );
-                                                    _triggerLocationAnimation();
-                                                    Navigator.pop(context);
-                                                  },
-                                                ),
-                                                const SizedBox(height: 16),
-                                              ],
+                                              ),
                                             ),
                                           ),
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
                                         ),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(100),
-                                      border: Border.all(
-                                        color: Colors.white24,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        ScaleTransition(
-                                          scale: _locAnimation,
-                                          child: const Icon(
-                                            Icons.location_on,
-                                            color: Colors.white,
-                                            size: 16,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(
+                                            100,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white24,
+                                            width: 1,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            _currentLocation,
-                                            style: GoogleFonts.inter(
+                                        child: Row(
+                                          children: [
+                                            ScaleTransition(
+                                              scale: _locAnimation,
+                                              child: const Icon(
+                                                Icons.location_on,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                _currentLocation,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 14,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(
+                                              Icons.keyboard_arrow_down,
                                               color: Colors.white,
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 14,
+                                              size: 16,
                                             ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                          ],
                                         ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.keyboard_arrow_down,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
                         const SizedBox(width: 8),
                         Row(
                           children: [
@@ -900,27 +944,61 @@ class _CameraScreenState extends State<CameraScreen>
                               ),
                             ),
                             const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white24,
-                                    width: 1,
+                            ValueListenableBuilder<int>(
+                              valueListenable:
+                                  NotificationService().unreadCount,
+                              builder: (context, count, child) {
+                                return GestureDetector(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const ProfileScreen(),
+                                    ),
                                   ),
-                                ),
-                                child: const Icon(
-                                  Icons.person_outline,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white24,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        const Icon(
+                                          Icons.person_outline,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        if (count > 0)
+                                          Positioned(
+                                            right: -6,
+                                            top: -6,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: const BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Text(
+                                                count > 9 ? '9+' : '$count',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -1272,10 +1350,10 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _loadData();
-    
+
     _dbSubscription = DBService.isar.scanRecords.watchLazy().listen((_) {
       if (mounted) {
-        _loadData();
+        _loadData(showSpinner: false);
       }
     });
   }
@@ -1297,13 +1375,16 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
     }
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _offset = 0;
-      _hasMore = true;
-      _items = [];
-    });
+  Future<void> _loadData({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() {
+        _isLoading = true;
+        _offset = 0;
+        _hasMore = true;
+        _items = [];
+      });
+    }
+
     final newItems = _isRecent
         ? await DBService.getRecentScans(offset: 0, limit: _pageSize)
         : await DBService.getBookmarks(offset: 0, limit: _pageSize);
@@ -1381,7 +1462,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Swipe left to delete",
+                    "Swipe left to remove",
                     style: GoogleFonts.inter(
                       color: Colors.white38,
                       fontSize: 12,
@@ -1390,20 +1471,35 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                   if (_isRecent)
                     GestureDetector(
                       onTap: () async {
-                        setState(() => _isClearing = true);
-                        await Future.delayed(const Duration(milliseconds: 300));
-                        await DBService.clearRecentScans();
-                        await _loadData();
+                        if (_items.isEmpty || _isClearing) return;
+                        setState(() {
+                          _isClearing = true;
+                        });
+                        // Calculate total animation time based on visible list size (max out around 1 second)
+                        final totalTimeMs = 300 + (_items.length * 40);
+                        await Future.delayed(
+                          Duration(
+                            milliseconds: totalTimeMs > 1000
+                                ? 1000
+                                : totalTimeMs,
+                          ),
+                        );
+
+                        await DBService.hideRecentScans(); // Soft delete
+
                         if (mounted) {
-                          setState(() => _isClearing = false);
+                          setState(() {
+                            _items.clear();
+                            _isClearing = false;
+                          });
                         }
                       },
                       child: Text(
                         "Clear All",
                         style: GoogleFonts.inter(
-                          color: Colors.redAccent.withOpacity(0.8),
+                          color: Colors.redAccent, // Made it red as requested
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1418,166 +1514,188 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                 : _items.isEmpty
                 ? Center(
                     child: Text(
-                      _isRecent ? "No scans yet." : "No bookmarks yet.",
-                      style: GoogleFonts.inter(color: Colors.white54),
+                      "No scans found",
+                      style: GoogleFonts.inter(color: Colors.white38),
                     ),
                   )
-                : AnimatedOpacity(
-                    duration: const Duration(milliseconds: 300),
-                    opacity: _isClearing ? 0.0 : 1.0,
-                    child: AnimatedSlide(
-                      duration: const Duration(milliseconds: 300),
-                      offset: _isClearing
-                          ? const Offset(-1.0, 0.0)
-                          : Offset.zero,
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _items.length + (_isLoadingMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index == _items.length) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16.0),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: AppTheme.neonCyan,
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          final item = _items[index];
-                          return Dismissible(
-                            key: Key(item.id.toString()),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              color: Colors.redAccent.withOpacity(0.2),
-                              child: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.redAccent,
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.zero,
+                    itemCount: _items.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _items.length) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: AppTheme.neonCyan,
+                                strokeWidth: 2,
                               ),
                             ),
-                            onDismissed: (direction) async {
-                              await DBService.deleteScan(item.id);
-                              setState(() {
-                                _items.removeAt(index);
-                              });
-                            },
-                            child: Material(
-                              color: Colors.transparent,
-                              child: ListTile(
-                                leading: item.imagePath != null
-                                    ? Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: Image.file(
-                                              File(
-                                                DBService.getImagePath(
-                                                      item.imagePath!,
-                                                    ) ??
-                                                    '',
+                          ),
+                        );
+                      }
+                      final item = _items[index];
+                      // Base animation delay is 100ms, each item after adds 40ms so they swipe sequentially right to left
+                      return AnimatedContainer(
+                        duration: Duration(milliseconds: 300 + (index * 40)),
+                        curve:
+                            Curves.easeInCubic, // Starts slow, picks up speed
+                        transform: Matrix4.translationValues(
+                          _isClearing ? -MediaQuery.sizeOf(context).width : 0,
+                          0,
+                          0,
+                        ),
+                        child: Dismissible(
+                          key: Key(item.id.toString()),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: Colors.redAccent.withOpacity(0.2),
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                          onDismissed: (direction) async {
+                            if (!_isRecent) {
+                              await DBService.setBookmarkStatus(
+                                item.id,
+                                item.imagePath,
+                                false,
+                              );
+                            } else {
+                              await DBService.hideScan(item.id); // Soft delete
+                            }
+                            setState(() {
+                              _items.removeWhere((e) => e.id == item.id);
+                            });
+                          },
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              leading: item.imagePath != null
+                                  ? Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: Image.file(
+                                            File(
+                                              DBService.getImagePath(
+                                                    item.imagePath!,
+                                                  ) ??
+                                                  '',
+                                            ),
+                                            width: 50,
+                                            height: 50,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) {
+                                              return const Icon(
+                                                Icons.image,
+                                                color: Colors.white54,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        if (!AppConfig.isPremiumUser &&
+                                            !item.isUnlocked)
+                                          Positioned(
+                                            top: -4,
+                                            left: -4,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(
+                                                  0.8,
+                                                ),
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: Colors.white24,
+                                                  width: 1,
+                                                ),
                                               ),
-                                              width: 50,
-                                              height: 50,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) {
-                                                return const Icon(
-                                                  Icons.image,
-                                                  color: Colors.white54,
-                                                );
-                                              },
+                                              child: const Icon(
+                                                Icons.lock,
+                                                color: Colors.white,
+                                                size: 10,
+                                              ),
                                             ),
                                           ),
-                                          if (!AppConfig.isPremiumUser && !item.isUnlocked)
-                                            Positioned(
-                                              top: -4,
-                                              left: -4,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black.withOpacity(0.8),
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(color: Colors.white24, width: 1),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.lock,
-                                                  color: Colors.white,
-                                                  size: 10,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      )
-                                    : const Icon(
-                                        Icons.set_meal,
-                                        color: Colors.white54,
-                                      ),
-                                title: Text(
-                                  item.englishName ?? 'Unknown',
-                                  style: GoogleFonts.inter(color: Colors.white),
-                                ),
-                                subtitle: Text(
-                                  '${item.localName ?? ''} • ${DBService.formatAmPm(item.timestamp)} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: const Icon(
-                                  Icons.chevron_left,
-                                  color: Colors.white24,
-                                ),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  final aiData = {
-                                    'englishName': item.englishName,
-                                    'localName': item.localName,
-                                    'freshnessScore': item.freshnessScore,
-                                    'freshnessStatus': item.freshnessStatus,
-                                    'freshnessEvidence': item.freshnessEvidence,
-                                    'bestCuts': item.bestCuts,
-                                    'idealFor': item.idealFor,
-                                    'trickeryTips': item.trickeryTips,
-                                    'suggestedPrice': item.suggestedPrice,
-                                    'marketAvgPrice': item.marketAvgPrice,
-                                    'imagePath': item.imagePath,
-                                    'isOffline': false,
-                                    'timestamp': item.timestamp
-                                        .toIso8601String(),
-                                    'location': item.region,
-                                  };
-                                  
-                                  if (!AppConfig.isPremiumUser && !item.isUnlocked) {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      useSafeArea: false,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (context) => RecognitionSheet(aiData: aiData, scanId: item.id),
-                                    );
-                                  } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ResultsScreen(aiData: aiData),
-                                      ),
-                                    );
-                                  }
-                                },
+                                      ],
+                                    )
+                                  : const Icon(
+                                      Icons.set_meal,
+                                      color: Colors.white54,
+                                    ),
+                              title: Text(
+                                item.englishName ?? 'Unknown',
+                                style: GoogleFonts.inter(color: Colors.white),
                               ),
+                              subtitle: Text(
+                                '${item.localName ?? ''} • ${DBService.formatAmPm(item.timestamp)} • ${item.freshnessScore != null ? (item.freshnessScore! * 100).toInt() : 0}% Fresh',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              trailing: const Icon(
+                                Icons.chevron_left,
+                                color: Colors.white24,
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                final aiData = {
+                                  'id': item.id,
+                                  'englishName': item.englishName,
+                                  'localName': item.localName,
+                                  'freshnessScore': item.freshnessScore,
+                                  'freshnessStatus': item.freshnessStatus,
+                                  'freshnessEvidence': item.freshnessEvidence,
+                                  'bestCuts': item.bestCuts,
+                                  'idealFor': item.idealFor,
+                                  'trickeryTips': item.trickeryTips,
+                                  'suggestedPrice': item.suggestedPrice,
+                                  'marketAvgPrice': item.marketAvgPrice,
+                                  'imagePath': item.imagePath,
+                                  'isOffline': false,
+                                  'timestamp': item.timestamp.toIso8601String(),
+                                  'location': item.region,
+                                };
+
+                                if (!AppConfig.isPremiumUser &&
+                                    !item.isUnlocked) {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    useSafeArea: false,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (context) => RecognitionSheet(
+                                      aiData: aiData,
+                                      scanId: item.id,
+                                    ),
+                                  );
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          ResultsScreen(aiData: aiData),
+                                    ),
+                                  );
+                                }
+                              },
                             ),
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],
