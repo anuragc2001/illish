@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
 import 'core/theme.dart';
@@ -13,14 +14,19 @@ import 'services/db_service.dart';
 import 'services/admob_service.dart';
 import 'services/auth_service.dart';
 import 'services/sync_service.dart';
+import 'services/notification_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    debugPrint("Native called background task: $task");
-    // TODO: Implement Isar -> Supabase sync logic here
     return Future.value(true);
   });
+}
+
+// Background messaging handler
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
 }
 
 List<CameraDescription> cameras = [];
@@ -31,6 +37,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   try {
     await dotenv.load(fileName: ".env");
@@ -42,6 +50,21 @@ void main() async {
 
   await DBService.initialize();
   await AdMobService.initialize();
+
+  // Initialize notifications
+  final messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  await messaging.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  await NotificationService().init();
 
   try {
     cameras = await availableCameras();

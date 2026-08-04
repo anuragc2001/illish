@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../core/models/app_notification_model.dart';
+import 'db_service.dart';
 
 class AppNotification {
   final String id;
@@ -14,18 +19,44 @@ class AppNotification {
     required this.time,
     this.icon = Icons.notifications_active,
   });
+
+  factory AppNotification.fromModel(AppNotificationModel model) {
+    IconData getIconData(String name) {
+      switch (name) {
+        case 'bolt': return Icons.bolt;
+        case 'trending_down': return Icons.trending_down;
+        case 'school': return Icons.school;
+        case 'warning': return Icons.warning;
+        case 'local_fire_department': return Icons.local_fire_department;
+        default: return Icons.notifications_active;
+      }
+    }
+
+    return AppNotification(
+      id: model.firestoreId.isNotEmpty ? model.firestoreId : model.id.toString(),
+      title: model.title,
+      subtitle: model.subtitle,
+      time: _formatTimeAgo(model.timestamp),
+      icon: getIconData(model.iconName),
+    );
+  }
+
+  static String _formatTimeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 }
 
 class NotificationService {
-  // Singleton pattern
   static final NotificationService _instance = NotificationService._internal();
-
-  factory NotificationService() {
-    return _instance;
-  }
-
+  factory NotificationService() => _instance;
   NotificationService._internal();
 
+  final ValueNotifier<List<AppNotification>> notifications = ValueNotifier<List<AppNotification>>([]);
+  
+  /* Mock data - commented out as requested
   final ValueNotifier<List<AppNotification>> notifications = ValueNotifier<List<AppNotification>>([
     AppNotification(
       id: '1',
@@ -34,21 +65,9 @@ class NotificationService {
       time: '2h ago',
       icon: Icons.bolt,
     ),
-    AppNotification(
-      id: '2',
-      title: 'Market Tip 🐟',
-      subtitle: 'Ilish prices are trending 10% lower in local markets today.',
-      time: '5h ago',
-      icon: Icons.trending_down,
-    ),
-    AppNotification(
-      id: '3',
-      title: 'Masterclass Unlocked 🎓',
-      subtitle: 'Check out new guide on identifying gill freshness.',
-      time: '1d ago',
-      icon: Icons.school,
-    ),
+    // ...
   ]);
+  */
 
   ValueNotifier<int> get unreadCount {
     final notifier = ValueNotifier<int>(notifications.value.length);
@@ -58,11 +77,138 @@ class NotificationService {
     return notifier;
   }
 
-  void clearAll() {
-    notifications.value = [];
+  Future<void> init() async {
+    await _loadFromLocal();
+    _setupFirebaseMessaging();
+    
+    // Listen for auth state changes so Firestore sync attaches even if user signs in after startup
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _setupFirestoreSync(user.uid);
+      }
+    });
   }
 
-  void remove(String id) {
-    notifications.value = notifications.value.where((n) => n.id != id).toList();
+  Future<void> _loadFromLocal() async {
+    final models = await DBService.getNotifications();
+    notifications.value = models.map((m) => AppNotification.fromModel(m)).toList();
+  }
+
+  void _setupFirebaseMessaging() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      final Map<String, dynamic> data = Map<String, dynamic>.from(message.data);
+      
+      if (message.notification != null) {
+        data['title'] = data['title'] ?? message.notification!.title ?? 'New Notification';
+        data['subtitle'] = data['subtitle'] ?? message.notification!.body ?? '';
+      }
+
+      data['id'] = data['id'] ?? message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+      await _processIncomingNotification(data);
+    });
+  }
+
+  void _setupFirestoreSync(String uid) {
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .snapshots()
+        .listen((snapshot) async {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.removed) {
+          await DBService.markNotificationCleared(change.doc.id);
+        } else if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
+          final data = change.doc.data();
+          if (data == null) continue;
+          
+          if (data['isCleared'] == true) {
+            await DBService.markNotificationCleared(change.doc.id);
+          } else {
+            data['firestoreId'] = change.doc.id;
+            await _processIncomingNotification(data);
+          }
+        }
+      }
+      await _loadFromLocal();
+    });
+  }
+
+  Future<void> _processIncomingNotification(Map<String, dynamic> data) async {
+    final rawId = data['id'] ?? data['firestoreId'];
+    final title = data['title'] ?? 'New Notification';
+    final timestamp = data['timestamp'] != null ? DateTime.tryParse(data['timestamp']) ?? DateTime.now() : DateTime.now();
+
+    final firestoreId = (rawId != null && rawId.toString().trim().isNotEmpty)
+        ? rawId.toString().trim()
+        : '${title.replaceAll(RegExp(r'\s+'), '_')}_${timestamp.millisecondsSinceEpoch}';
+
+    final notif = AppNotificationModel()
+      ..firestoreId = firestoreId
+      ..title = title
+      ..subtitle = data['subtitle'] ?? ''
+      ..iconName = data['icon'] ?? 'notifications_active'
+      ..timestamp = timestamp
+      ..isCleared = false;
+      
+    await DBService.saveNotification(notif);
+    await _loadFromLocal();
+
+    // Sync newly received FCM payload UP to Firestore so other devices (Phone B) receive it!
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && notif.firestoreId.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .doc(notif.firestoreId)
+          .set({
+            'id': notif.firestoreId,
+            'title': notif.title,
+            'subtitle': notif.subtitle,
+            'icon': notif.iconName,
+            'timestamp': notif.timestamp.toIso8601String(),
+            'isCleared': false,
+          }, SetOptions(merge: true));
+    }
+  }
+
+  void clearAll() async {
+    await DBService.clearAllNotifications();
+    await _loadFromLocal();
+
+    // Hard-delete all notification documents in Firestore
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .get();
+      
+      final batch = FirebaseFirestore.instance.batch();
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  void remove(String id) async {
+    await DBService.markNotificationCleared(id);
+    await _loadFromLocal();
+
+    // Hard-delete individual notification document in Firestore
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && id.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .doc(id)
+          .delete()
+          .catchError((e) => debugPrint("Firestore delete error: $e"));
+    }
   }
 }

@@ -60,6 +60,7 @@ dependencies:
   cloud_firestore: ^5.4.3
   firebase_storage: ^12.3.2
   firebase_remote_config: ^5.1.2
+  firebase_messaging: ^15.2.10
   flutter_image_compress: ^2.3.0
   path: ^1.9.0
   sign_in_with_apple: ^6.1.1

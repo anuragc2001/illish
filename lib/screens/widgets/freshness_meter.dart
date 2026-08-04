@@ -94,66 +94,91 @@ class _FreshnessMeterState extends State<FreshnessMeter> with SingleTickerProvid
               ),
             ],
           ),
-          const SizedBox(height: 32),
-          SizedBox(
-            height: 200,
-            child: AnimatedBuilder(
-              animation: _animation,
-              builder: (context, child) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CustomPaint(
-                      size: const Size(double.infinity, 200),
-                      painter: _MeterPainter(ratio: _animation.value),
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.set_meal, color: Colors.white54, size: 32),
-                          const SizedBox(height: 8),
-                          Row(
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.maxWidth;
+              // Leave space for stroke width
+              final arcRadius = (availableWidth - 40) / 2;
+              
+              // Exactly enough height for the top padding + semicircle + bottom padding
+              final layoutHeight = arcRadius + 30;
+
+              // Mathematical interpolation for fish icon position:
+              // Top of arc is at y = 10. Top of number text row is at y = layoutHeight - 76.
+              const double arcTopY = 10.0;
+              final double numberTopY = layoutHeight - 76.0;
+              final double spaceBetween = numberTopY - arcTopY;
+              
+              // 45% distance from the number top (55% distance from arc top)
+              final double iconCenterY = arcTopY + (0.58 * spaceBetween);
+              final double iconTopY = iconCenterY - 12.0; // 12 is half of icon size (24)
+
+              return SizedBox(
+                height: layoutHeight,
+                child: AnimatedBuilder(
+                  animation: _animation,
+                  builder: (context, child) {
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CustomPaint(
+                          size: Size(availableWidth, layoutHeight),
+                          painter: _MeterPainter(ratio: _animation.value, radius: arcRadius),
+                        ),
+                        // Anchor numbers and tier label at bottom
+                        Positioned(
+                          bottom: 10,
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
                             children: [
-                              Text(
-                                "${(_animation.value * widget.maxScore).toInt()}",
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.0,
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    "${(_animation.value * widget.maxScore).toInt()}",
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                  Text(
+                                    " /${widget.maxScore}",
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white54,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
                               ),
+                              const SizedBox(height: 4),
                               Text(
-                                " /${widget.maxScore}",
+                                _getTierLabel(widget.score),
                                 style: GoogleFonts.inter(
-                                  color: Colors.white54,
-                                  fontSize: 16,
+                                  color: _getTierColor(widget.score),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getTierLabel(widget.score),
-                            style: GoogleFonts.inter(
-                              color: _getTierColor(widget.score),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                        ),
+                        // Fish icon mathematically placed 40% closer to the number than the middle
+                        Positioned(
+                          top: iconTopY,
+                          child: const Icon(Icons.set_meal, color: Colors.white54, size: 24),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              );
+            }
           ),
           const SizedBox(height: 16),
           Row(
@@ -192,13 +217,14 @@ class _FreshnessMeterState extends State<FreshnessMeter> with SingleTickerProvid
 
 class _MeterPainter extends CustomPainter {
   final double ratio;
+  final double radius;
 
-  _MeterPainter({required this.ratio});
+  _MeterPainter({required this.ratio, required this.radius});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height - 20); // shift center down a bit
-    final radius = min(size.width / 2.5, size.height - 20);
+    // Mathematically anchor the arc so its highest point is exactly at y=10
+    final center = Offset(size.width / 2, 10 + radius);
 
     final rect = Rect.fromCircle(center: center, radius: radius);
     const startAngle = pi;

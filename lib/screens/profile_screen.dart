@@ -1428,8 +1428,22 @@ class _NotificationDialogState extends State<NotificationDialog> {
   @override
   void initState() {
     super.initState();
-    // Copy the notifications so we can animate them independently
     _localNotifications = List.from(NotificationService().notifications.value);
+    NotificationService().notifications.addListener(_onNotificationsChanged);
+  }
+
+  @override
+  void dispose() {
+    NotificationService().notifications.removeListener(_onNotificationsChanged);
+    super.dispose();
+  }
+
+  void _onNotificationsChanged() {
+    if (!_isClearing && mounted) {
+      setState(() {
+        _localNotifications = List.from(NotificationService().notifications.value);
+      });
+    }
   }
 
   void _handleClearAll() async {

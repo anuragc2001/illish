@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/models/scan_record.dart';
 import '../core/models/daily_scan_aggregate.dart';
 import '../core/models/recipe_cache.dart';
+import '../core/models/app_notification_model.dart';
 import '../config/app_config.dart';
 import 'sync_service.dart';
 
@@ -14,11 +15,20 @@ class DBService {
   static Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
     AppConfig.documentsPath = dir.path;
-    debugPrint('📁 Isar DB Directory: ${dir.path}');
-    isar = await Isar.open(
-      [ScanRecordSchema, RecipeCacheSchema, DailyScanAggregateSchema],
-      directory: dir.path,
-    );
+    try {
+      isar = await Isar.open(
+        [ScanRecordSchema, RecipeCacheSchema, DailyScanAggregateSchema, AppNotificationModelSchema],
+        directory: dir.path,
+        inspector: kDebugMode,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error opening Isar DB: $e');
+      if (Isar.instanceNames.contains(Isar.defaultName)) {
+        isar = Isar.getInstance()!;
+      } else {
+        rethrow;
+      }
+    }
     
     await _migrateLegacyScansToAggregates();
   }
@@ -368,4 +378,48 @@ class DBService {
     // Async fire-and-forget sync to Firebase
     SyncService.upsertDailyAggregate(aggregate);
   }
+
+  // --- Notification Methods ---
+  static Future<List<AppNotificationModel>> getNotifications() async {
+    return await isar.appNotificationModels
+        .where()
+        .sortByTimestampDesc()
+        .findAll();
+  }
+
+  static Future<void> saveNotification(AppNotificationModel notif) async {
+    if (notif.firestoreId.isNotEmpty) {
+      final existing = await isar.appNotificationModels
+          .filter()
+          .firestoreIdEqualTo(notif.firestoreId)
+          .findFirst();
+      if (existing != null) {
+        notif.id = existing.id; // Reuse existing primary key to UPDATE instead of inserting duplicate
+      }
+    }
+    await isar.writeTxn(() async {
+      await isar.appNotificationModels.put(notif);
+    });
+  }
+
+  static Future<void> markNotificationCleared(String identifier) async {
+    await isar.writeTxn(() async {
+      // Delete by firestoreId first
+      final count = await isar.appNotificationModels.filter().firestoreIdEqualTo(identifier).deleteAll();
+      if (count == 0) {
+        // Fallback: delete by autoIncrement primary key
+        final intId = int.tryParse(identifier);
+        if (intId != null) {
+          await isar.appNotificationModels.delete(intId);
+        }
+      }
+    });
+  }
+
+  static Future<void> clearAllNotifications() async {
+    await isar.writeTxn(() async {
+      await isar.appNotificationModels.clear();
+    });
+  }
 }
+
