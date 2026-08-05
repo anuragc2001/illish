@@ -2,6 +2,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://phonepe.mycloudrepo.io/public/repositories/phonepe-intentsdk-android")
+        }
     }
 }
 
@@ -28,9 +31,7 @@ subprojects {
         val p = this
         p.plugins.withId("com.android.library") {
             p.extensions.configure<com.android.build.api.dsl.LibraryExtension> {
-                if (p.name == "geocoding_android" || p.name.contains("isar")) {
-                    compileSdk = 36
-                }
+                compileSdk = 36
                 if (namespace == null || namespace?.isEmpty() == true) {
                     if (p.name.contains("isar")) {
                         namespace = "dev.isar.${p.name.replace("-", ".")}"

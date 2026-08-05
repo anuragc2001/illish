@@ -15,6 +15,7 @@ import 'services/admob_service.dart';
 import 'services/auth_service.dart';
 import 'services/sync_service.dart';
 import 'services/notification_service.dart';
+import 'services/payment_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -47,6 +48,7 @@ void main() async {
   }
 
   await RemoteConfigService.initialize();
+  await PaymentService.initPhonePe();
 
   await DBService.initialize();
   await AdMobService.initialize();

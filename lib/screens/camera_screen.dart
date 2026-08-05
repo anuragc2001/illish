@@ -1578,62 +1578,63 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                           child: Material(
                             color: Colors.transparent,
                             child: ListTile(
-                              leading: item.imagePath != null
-                                  ? Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          child: Image.file(
-                                            File(
-                                              DBService.getImagePath(
-                                                    item.imagePath!,
-                                                  ) ??
-                                                  '',
+                              leading: Builder(
+                                builder: (context) {
+                                  final bool isLocked = !AppConfig.isPremiumUser && !item.isUnlocked;
+                                  
+                                  Widget imageWidget;
+                                  if (item.imagePath != null) {
+                                    imageWidget = Image.file(
+                                      File(DBService.getImagePath(item.imagePath!) ?? ''),
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        width: 50,
+                                        height: 50,
+                                        color: Colors.white.withOpacity(0.05),
+                                        child: const Icon(Icons.broken_image, color: Colors.white54),
+                                      ),
+                                    );
+                                  } else {
+                                    imageWidget = Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.white.withOpacity(0.05),
+                                      child: const Icon(Icons.broken_image, color: Colors.white54),
+                                    );
+                                  }
+
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: isLocked 
+                                          ? ImageFiltered(
+                                              imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                                              child: imageWidget,
+                                            ) 
+                                          : imageWidget,
+                                      ),
+                                      if (isLocked)
+                                        Positioned(
+                                          top: -4,
+                                          left: -4,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.8),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: Colors.white24, width: 1),
                                             ),
-                                            width: 50,
-                                            height: 50,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) {
-                                              return const Icon(
-                                                Icons.image,
-                                                color: Colors.white54,
-                                              );
-                                            },
+                                            child: const Icon(Icons.lock, color: Colors.amber, size: 10),
                                           ),
                                         ),
-                                        if (!AppConfig.isPremiumUser &&
-                                            !item.isUnlocked)
-                                          Positioned(
-                                            top: -4,
-                                            left: -4,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black.withOpacity(
-                                                  0.8,
-                                                ),
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: Colors.white24,
-                                                  width: 1,
-                                                ),
-                                              ),
-                                              child: const Icon(
-                                                Icons.lock,
-                                                color: Colors.white,
-                                                size: 10,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    )
-                                  : const Icon(
-                                      Icons.set_meal,
-                                      color: Colors.white54,
-                                    ),
+                                    ],
+                                  );
+                                },
+                              ),
                               title: Text(
                                 item.englishName ?? 'Unknown',
                                 style: GoogleFonts.inter(color: Colors.white),

@@ -4,6 +4,8 @@ import '../core/theme.dart';
 import 'results_screen.dart';
 import '../services/admob_service.dart';
 import '../services/db_service.dart';
+import '../services/remote_config_service.dart';
+import '../services/payment_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -22,8 +24,8 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // UI Switch: set to true to show the ₹19 single price, false for the multi-plan UI
-  final bool _showSinglePrice = false;
+  // UI Switch: dynamically fetched
+  bool get _showSinglePrice => RemoteConfigService.showSinglePrice;
   String _selectedPlan = 'weekly';
 
   @override
@@ -79,38 +81,75 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           child: CircularProgressIndicator(color: AppTheme.neonCyan)),
     );
 
-    // Bypass payment logic as requested
-    await Future.delayed(const Duration(seconds: 1));
+    bool success = false;
+    try {
+      double amount = 0;
+      if (_showSinglePrice) {
+        amount = double.tryParse(RemoteConfigService.priceWeekly.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 29.0;
+      } else {
+        if (_selectedPlan == 'weekly') {
+          amount = double.tryParse(RemoteConfigService.priceWeekly.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 29.0;
+        } else if (_selectedPlan == 'monthly') {
+          amount = double.tryParse(RemoteConfigService.priceMonthly.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
+        } else {
+          amount = double.tryParse(RemoteConfigService.priceAnnual.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 499.0;
+        }
+      }
+
+      success = await PaymentService.startPhonePeCheckout(planId: _selectedPlan, amount: amount);
+    } catch (e) {
+      print("Error in _launchUPI: $e");
+      success = false;
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // guaranteed to pop loading dialog
+      }
+    }
 
     if (context.mounted) {
-      if (widget.scanId != null) {
-        await DBService.unlockScan(widget.scanId!);
+      if (success) {
+        if (widget.scanId != null) {
+          await DBService.unlockScan(widget.scanId!);
+          if (!mounted) return;
+          Navigator.pop(context); // pop payment sheet
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  ResultsScreen(aiData: widget.aiData),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.easeOutCubic;
+                var tween = Tween(begin: begin, end: end)
+                    .chain(CurveTween(curve: curve));
+                return SlideTransition(
+                    position: animation.drive(tween), child: child);
+              },
+            ),
+          );
+        } else {
+          // If no scanId, it was called directly from Profile settings
+          Navigator.pop(context); // pop payment sheet
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Welcome to Illish Pro!")),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Payment failed or cancelled.")),
+        );
       }
-      if (!mounted) return;
-      Navigator.pop(context); // pop dialog
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              ResultsScreen(aiData: widget.aiData),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeOutCubic;
-            var tween = Tween(begin: begin, end: end)
-                .chain(CurveTween(curve: curve));
-            return SlideTransition(
-                position: animation.drive(tween), child: child);
-          },
-        ),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        backgroundColor: const Color(0xFF090B0F),
+    return ValueListenableBuilder<int>(
+      valueListenable: RemoteConfigService.configUpdateNotifier,
+      builder: (context, _, __) {
+        return Scaffold(
+          backgroundColor: const Color(0xFF090B0F),
         body: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
@@ -255,7 +294,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                                   ),
                                 ),
                                 Text(
-                                  "19",
+                                  RemoteConfigService.priceWeekly.replaceAll(RegExp(r'[^0-9.]'), ''),
                                   style: GoogleFonts.inter(
                                     fontSize: 72,
                                     fontWeight: FontWeight.w800,
@@ -292,9 +331,9 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                             const SizedBox(height: 20),
 
                             // Plans
-                            _buildPlanCard('weekly', 'Weekly Pass', '₹29', 'Perfect for casual buyers'),
-                            _buildPlanCard('monthly', 'Illish Pro', '₹99', 'Cancel anytime'),
-                            _buildPlanCard('annual', 'Pro Annual', '₹499', 'Save 58%', bestValue: true),
+                            _buildPlanCard('weekly', 'Weekly Pass', RemoteConfigService.priceWeekly, 'Perfect for casual buyers'),
+                            _buildPlanCard('monthly', 'Illish Pro', RemoteConfigService.priceMonthly, 'Cancel anytime'),
+                            _buildPlanCard('annual', 'Pro Annual', RemoteConfigService.priceAnnual, 'Save 58%', bestValue: true),
                             const SizedBox(height: 16),
                           ],
 
@@ -385,6 +424,8 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           ),
         ),
       );
+      },
+    );
   }
 
   Widget _buildPlanCard(String id, String title, String price, String subtitle, {bool bestValue = false}) {

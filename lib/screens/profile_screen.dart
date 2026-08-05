@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'dart:async';
 import 'dart:math';
@@ -1165,17 +1166,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.set_meal,
-                                        color: AppTheme.neonCyan,
-                                      ),
+                                    Builder(
+                                      builder: (context) {
+                                        final bool isLocked = !AppConfig.isPremiumUser && !scan.isUnlocked;
+                                        Widget imageWidget;
+                                        if (scan.imagePath != null) {
+                                          imageWidget = Image.file(
+                                            File(DBService.getImagePath(scan.imagePath!) ?? ''),
+                                            width: 50,
+                                            height: 50,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              width: 50,
+                                              height: 50,
+                                              color: Colors.white.withOpacity(0.05),
+                                              child: const Icon(Icons.broken_image, color: Colors.white54),
+                                            ),
+                                          );
+                                        } else {
+                                          imageWidget = Container(
+                                            width: 50,
+                                            height: 50,
+                                            color: Colors.white.withOpacity(0.05),
+                                            child: const Icon(Icons.broken_image, color: Colors.white54),
+                                          );
+                                        }
+                                        return Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: isLocked 
+                                                ? ImageFiltered(
+                                                    imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                                                    child: imageWidget,
+                                                  ) 
+                                                : imageWidget,
+                                            ),
+                                          ],
+                                        );
+                                      },
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(

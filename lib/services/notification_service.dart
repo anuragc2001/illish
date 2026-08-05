@@ -195,7 +195,7 @@ class NotificationService {
     await DBService.clearAllNotifications();
     await _loadFromLocal();
 
-    // Hard-delete all notification documents in Firestore
+    // Soft-delete all notification documents in Firestore
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final snapshot = await FirebaseFirestore.instance
@@ -206,9 +206,9 @@ class NotificationService {
       
       final batch = FirebaseFirestore.instance.batch();
       for (var doc in snapshot.docs) {
-        batch.delete(doc.reference);
+        batch.update(doc.reference, {'isCleared': true});
       }
-      await batch.commit();
+      await batch.commit().catchError((e) => debugPrint("Firestore clearAll error: $e"));
     }
   }
 
@@ -216,7 +216,7 @@ class NotificationService {
     await DBService.markNotificationCleared(id);
     await _loadFromLocal();
 
-    // Hard-delete individual notification document in Firestore
+    // Soft-delete individual notification document in Firestore
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && id.isNotEmpty) {
       FirebaseFirestore.instance
@@ -224,7 +224,7 @@ class NotificationService {
           .doc(user.uid)
           .collection('notifications')
           .doc(id)
-          .delete()
+          .update({'isCleared': true})
           .catchError((e) => debugPrint("Firestore delete error: $e"));
     }
   }

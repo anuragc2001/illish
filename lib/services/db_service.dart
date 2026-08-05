@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -21,12 +22,20 @@ class DBService {
         directory: dir.path,
         inspector: kDebugMode,
       );
-      if (kDebugMode) {
-        print('════════════════════════════════════════════════════════════');
-        print('📦 Isar DB Path: ${dir.path}');
-        print('🔍 Isar Inspector: https://inspector.isar.dev/#/3.1.0+1/');
-        print('════════════════════════════════════════════════════════════');
+      void printIsarLink() {
+        if (kDebugMode) {
+          final msg = '\n════════════════════════════════════════════════════════════\n'
+              '📦 Isar DB Path: ${dir.path}\n'
+              '🔍 Isar Inspector: https://inspector.isar.dev/#/3.1.0+1/\n'
+              '════════════════════════════════════════════════════════════\n';
+          print(msg);
+          dev.log(msg, name: 'ISAR_INSPECTOR');
+        }
       }
+
+      printIsarLink();
+      // Re-print after 3 seconds so flutter run logger catches it after attaching stdout stream
+      Future.delayed(const Duration(seconds: 3), printIsarLink);
     } catch (e) {
       debugPrint('⚠️ Error opening Isar DB: $e');
       if (Isar.instanceNames.contains(Isar.defaultName)) {
@@ -143,6 +152,22 @@ class DBService {
     });
     
     return record.id;
+  }
+
+  static Future<void> unlockAllScans() async {
+    final lockedScans = await isar.scanRecords.filter().isUnlockedEqualTo(false).findAll();
+    if (lockedScans.isEmpty) return;
+
+    await isar.writeTxn(() async {
+      for (var scan in lockedScans) {
+        scan.isUnlocked = true;
+        await isar.scanRecords.put(scan);
+      }
+    });
+
+    for (var scan in lockedScans) {
+      await SyncService.unlockScanInCloud(scan.id);
+    }
   }
 
   static Future<void> unlockScan(int id) async {
