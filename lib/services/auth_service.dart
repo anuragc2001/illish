@@ -4,6 +4,8 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart';
 import 'db_service.dart';
 import 'sync_service.dart';
+import '../config/app_config.dart';
+import 'notification_service.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -162,10 +164,13 @@ class AuthService {
   static Future<void> signOut() async {
     try {
       SyncService.stopRealtimeSync();
+      NotificationService().stopSync();
       await _googleSignIn.signOut();
       await _auth.signOut();
       // Wipe all local database items as requested in the plan
       await DBService.clearAll();
+      AppConfig.isPremiumUser = false;
+      await NotificationService().reloadFromLocal();
     } catch (e) {
       debugPrint("Sign-Out Error: $e");
     }

@@ -21,10 +21,20 @@ class DBService {
         directory: dir.path,
         inspector: kDebugMode,
       );
+      if (kDebugMode) {
+        print('════════════════════════════════════════════════════════════');
+        print('📦 Isar DB Path: ${dir.path}');
+        print('🔍 Isar Inspector: https://inspector.isar.dev/#/3.1.0+1/');
+        print('════════════════════════════════════════════════════════════');
+      }
     } catch (e) {
       debugPrint('⚠️ Error opening Isar DB: $e');
       if (Isar.instanceNames.contains(Isar.defaultName)) {
         isar = Isar.getInstance()!;
+        if (kDebugMode) {
+          print('📦 Isar DB Path (Existing Instance): ${dir.path}');
+          print('🔍 Isar Inspector: https://inspector.isar.dev/#/3.1.0+1/');
+        }
       } else {
         rethrow;
       }
@@ -286,6 +296,7 @@ class DBService {
     await isar.writeTxn(() async {
       await isar.scanRecords.clear();
       await isar.dailyScanAggregates.clear();
+      await isar.appNotificationModels.clear();
     });
     for (var scan in scans) {
       final absolutePath = getImagePath(scan.imagePath);

@@ -22,6 +22,10 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  // UI Switch: set to true to show the ₹19 single price, false for the multi-plan UI
+  final bool _showSinglePrice = false;
+  String _selectedPlan = 'weekly';
+
   @override
   void initState() {
     super.initState();
@@ -117,51 +121,84 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Custom Header replacing AppBar
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8, right: 16, top: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // Custom Header and Shield overlapping to save vertical space
+                    SizedBox(
+                      width: double.infinity,
+                      child: Stack(
+                        alignment: Alignment.topCenter,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                            onPressed: () {
-                              AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
-                            },
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              AdMobService.showInterstitialAd(onAdDismissed: () async {
-                                if (widget.scanId != null) {
-                                  await DBService.unlockScan(widget.scanId!);
-                                }
-                                if (context.mounted) {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    PageRouteBuilder(
-                                      pageBuilder: (context, animation, secondaryAnimation) =>
-                                          ResultsScreen(aiData: widget.aiData),
-                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                        const begin = Offset(0.0, 1.0);
-                                        const end = Offset.zero;
-                                        const curve = Curves.easeOutCubic;
-                                        var tween = Tween(begin: begin, end: end)
-                                            .chain(CurveTween(curve: curve));
-                                        return SlideTransition(
-                                            position: animation.drive(tween), child: child);
-                                      },
-                                    ),
-                                  );
-                                }
-                              });
-                            },
-                            child: Text(
-                              'Skip',
-                              style: GoogleFonts.inter(
-                                color: Colors.white54,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                          // Shield Icon with glow
+                          Padding(
+                            padding: const EdgeInsets.only(top: 28),
+                            child: ScaleTransition(
+                              scale: _pulseAnimation,
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppTheme.neonCyan.withOpacity(0.15),
+                                      blurRadius: 30,
+                                      spreadRadius: 10,
+                                    )
+                                  ],
+                                ),
+                                child: const Icon(Icons.shield_outlined,
+                                    color: AppTheme.neonCyan, size: 56),
                               ),
+                            ),
+                          ),
+                          // Back and Skip Buttons
+                          Positioned(
+                            top: 12,
+                            left: 8,
+                            right: 16,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                                  onPressed: () {
+                                    AdMobService.handleResultsBackButton(onProceed: () => Navigator.pop(context));
+                                  },
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    AdMobService.showInterstitialAd(onAdDismissed: () async {
+                                      if (widget.scanId != null) {
+                                        await DBService.unlockScan(widget.scanId!);
+                                      }
+                                      if (context.mounted) {
+                                        Navigator.pushReplacement(
+                                          context,
+                                          PageRouteBuilder(
+                                            pageBuilder: (context, animation, secondaryAnimation) =>
+                                                ResultsScreen(aiData: widget.aiData),
+                                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                              const begin = Offset(0.0, 1.0);
+                                              const end = Offset.zero;
+                                              const curve = Curves.easeOutCubic;
+                                              var tween = Tween(begin: begin, end: end)
+                                                  .chain(CurveTween(curve: curve));
+                                              return SlideTransition(
+                                                  position: animation.drive(tween), child: child);
+                                            },
+                                          ),
+                                        );
+                                      }
+                                    });
+                                  },
+                                  child: Text(
+                                    'Skip',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white54,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -175,26 +212,6 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Shield Icon with glow
-                          ScaleTransition(
-                            scale: _pulseAnimation,
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.neonCyan.withOpacity(0.15),
-                                    blurRadius: 30,
-                                    spreadRadius: 10,
-                                  )
-                                ],
-                              ),
-                              child: const Icon(Icons.shield_outlined,
-                                  color: AppTheme.neonCyan, size: 56),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
 
                           // Headlines
                           Text(
@@ -208,7 +225,9 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            "Unlock the AI Freshness\nScanner for the weekend.",
+                            _showSinglePrice 
+                                ? "Unlock the AI Freshness\nScanner for the weekend."
+                                : "Unlock unlimited AI freshness scans & expert\ncuts.",
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               color: Colors.white70,
@@ -216,49 +235,68 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
 
-                          // Price
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8.0, right: 4.0),
-                                child: Text(
-                                  "₹",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                          if (_showSinglePrice) ...[
+                            // Price
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0, right: 4.0),
+                                  child: Text(
+                                    "₹",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Text(
-                                "19",
-                                style: GoogleFonts.inter(
-                                  fontSize: 72,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  height: 1.0,
+                                Text(
+                                  "19",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 72,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
 
-                          // Features List
-                          _buildFeatureRow(Icons.all_inclusive, "Unlimited scans",
-                              "All weekend"),
-                          const SizedBox(height: 20),
-                          _buildFeatureRow(Icons.auto_awesome, "AI freshness score",
-                              "With evidence"),
-                          const SizedBox(height: 20),
-                          _buildFeatureRow(Icons.restaurant, "Cuts, recipes & more",
-                              "Expert curated"),
+                            // Features List
+                            _buildFeatureRow(Icons.all_inclusive, "Unlimited scans",
+                                "All weekend"),
+                            const SizedBox(height: 20),
+                            _buildFeatureRow(Icons.auto_awesome, "AI freshness score",
+                                "With evidence"),
+                            const SizedBox(height: 20),
+                            _buildFeatureRow(Icons.restaurant, "Cuts, recipes & more",
+                                "Expert curated"),
 
-                          // Guaranteed mathematical gap replacing Spacer() so it never overlaps
-                          SizedBox(height: MediaQuery.sizeOf(context).height * 0.04),
+                            // Guaranteed mathematical gap replacing Spacer() so it never overlaps
+                            SizedBox(height: MediaQuery.sizeOf(context).height * 0.04),
+                          ] else ...[
+                            // Features List
+                            _buildFeatureRow(Icons.all_inclusive, "Unlimited scans",
+                                "No daily limits"),
+                            const SizedBox(height: 16),
+                            _buildFeatureRow(Icons.auto_awesome, "AI freshness score",
+                                "With evidence"),
+                            const SizedBox(height: 16),
+                            _buildFeatureRow(Icons.restaurant, "Cuts, recipes & more",
+                                "Expert curated"),
+                            const SizedBox(height: 20),
+
+                            // Plans
+                            _buildPlanCard('weekly', 'Weekly Pass', '₹29', 'Perfect for casual buyers'),
+                            _buildPlanCard('monthly', 'Illish Pro', '₹99', 'Cancel anytime'),
+                            _buildPlanCard('annual', 'Pro Annual', '₹499', 'Save 58%', bestValue: true),
+                            const SizedBox(height: 16),
+                          ],
 
                           // Pay Button with Glow
                           GestureDetector(
@@ -319,7 +357,24 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                             ],
                           ),
 
-                          const SizedBox(height: 60),
+                          if (!_showSinglePrice) ...[
+                            const SizedBox(height: 16),
+                            /* --- COMMENTED OUT FOR FUTURE BUSINESS DECISION ---
+                            // Trust Badge
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.people, color: Colors.white54, size: 14),
+                                const SizedBox(width: 8),
+                                Text("Trusted by 50K+ fish lovers",
+                                    style: GoogleFonts.inter(
+                                        color: Colors.white54, fontSize: 12)),
+                              ],
+                            ),
+                            -------------------------------------------------- */
+                          ],
+
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
@@ -330,6 +385,103 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           ),
         ),
       );
+  }
+
+  Widget _buildPlanCard(String id, String title, String price, String subtitle, {bool bestValue = false}) {
+    final isSelected = _selectedPlan == id;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPlan = id;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.neonCyan.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppTheme.neonCyan : Colors.white12,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Check box
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected ? AppTheme.neonCyan : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? AppTheme.neonCyan : Colors.white38,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.black)
+                  : null,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (bestValue) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.neonCyan,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            "BEST VALUE",
+                            style: GoogleFonts.inter(
+                              color: Colors.black,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ]
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              price,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildFeatureRow(IconData icon, String title, String subtitle) {

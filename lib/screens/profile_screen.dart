@@ -394,80 +394,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
                             // Profile Avatar with Subtle Premium Ring & PRO Badge
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.amber,
-                                        Colors.orangeAccent,
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                  ),
-                                  child: Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.black,
-                                    ),
-                                    clipBehavior: Clip.hardEdge,
-                                    child: user?.photoURL != null
-                                        ? Image.network(
-                                            user!.photoURL!,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : const Icon(
-                                            Icons.person,
-                                            color: Colors.white,
-                                            size: 28,
-                                          ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: -4,
-                                  right: -4,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: Colors.amber,
-                                        width: 1,
+                            ValueListenableBuilder<bool>(
+                              valueListenable: AppConfig.isPremiumNotifier,
+                              builder: (context, isPremium, child) {
+                                final showPremium = isLoggedIn && isPremium;
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(showPremium ? 2 : 0),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: showPremium
+                                            ? const LinearGradient(
+                                                colors: [
+                                                  Colors.amber,
+                                                  Colors.orangeAccent,
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              )
+                                            : null,
+                                      ),
+                                      child: Container(
+                                        width: 56,
+                                        height: 56,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.black,
+                                        ),
+                                        clipBehavior: Clip.hardEdge,
+                                        child: user?.photoURL != null
+                                            ? Image.network(
+                                                user!.photoURL!,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : const Icon(
+                                                Icons.person,
+                                                color: Colors.white,
+                                                size: 28,
+                                              ),
                                       ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.star,
-                                          color: Colors.amber,
-                                          size: 10,
-                                        ),
-                                        const SizedBox(width: 2),
-                                        Text(
-                                          "PRO",
-                                          style: GoogleFonts.inter(
-                                            color: Colors.amber,
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
+                                    if (showPremium)
+                                      Positioned(
+                                        bottom: -4,
+                                        right: -4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: Colors.amber,
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons.star,
+                                                color: Colors.amber,
+                                                size: 10,
+                                              ),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                "PRO",
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.amber,
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -475,12 +484,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 24),
 
                         // Freshness Meter (Average Freshness Rating %)
-                        FreshnessMeter(
-                          score: _avgFreshnessScore,
-                          maxScore: 100,
-                        ),
-
-                        const SizedBox(height: 24),
+                        if (isLoggedIn && _totalScans > 0) ...[
+                          FreshnessMeter(
+                            score: _avgFreshnessScore,
+                            maxScore: 100,
+                          ),
+                          const SizedBox(height: 24),
+                        ],
 
                         // Auth Actions
                         if (_isLoading)
@@ -550,36 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _handleAppleSignIn,
-                                  icon: const Icon(
-                                    Icons.apple,
-                                    color: Colors.white,
-                                  ),
-                                  label: const Text(
-                                    "Sign in with Apple",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    side: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
+
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
@@ -609,36 +590,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _showPhoneAuthSheet,
-                                  icon: const Icon(
-                                    Icons.phone_android,
-                                    color: Colors.white70,
-                                  ),
-                                  label: const Text(
-                                    "Sign in with Phone Number",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    side: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
+
                             ],
                           ),
                       ],

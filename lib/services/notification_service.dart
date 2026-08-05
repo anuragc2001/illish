@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -77,16 +78,31 @@ class NotificationService {
     return notifier;
   }
 
+  StreamSubscription<QuerySnapshot>? _firestoreSub;
+  StreamSubscription<User?>? _authSub;
+
   Future<void> init() async {
     await _loadFromLocal();
     _setupFirebaseMessaging();
     
     // Listen for auth state changes so Firestore sync attaches even if user signs in after startup
-    FirebaseAuth.instance.authStateChanges().listen((user) {
+    _authSub?.cancel();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         _setupFirestoreSync(user.uid);
+      } else {
+        stopSync();
       }
     });
+  }
+
+  void stopSync() {
+    _firestoreSub?.cancel();
+    _firestoreSub = null;
+  }
+
+  Future<void> reloadFromLocal() async {
+    await _loadFromLocal();
   }
 
   Future<void> _loadFromLocal() async {
@@ -110,7 +126,8 @@ class NotificationService {
   }
 
   void _setupFirestoreSync(String uid) {
-    FirebaseFirestore.instance
+    _firestoreSub?.cancel();
+    _firestoreSub = FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('notifications')
