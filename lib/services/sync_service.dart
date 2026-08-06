@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -47,6 +48,46 @@ class SyncService {
       }
     } catch (_) {}
     return DateTime.now();
+  }
+
+  static Future<void> upgradeUserToPremium(String planId) async {
+    if (_uid == null) return;
+    try {
+      DateTime expiry;
+      switch (planId) {
+        case 'weekly':
+          expiry = DateTime.now().add(const Duration(days: 7));
+          break;
+        case 'monthly':
+          expiry = DateTime.now().add(const Duration(days: 30));
+          break;
+        case 'annual':
+          expiry = DateTime.now().add(const Duration(days: 365));
+          break;
+        default:
+          expiry = DateTime.now().add(const Duration(days: 7));
+      }
+
+      // Update Firestore
+      await _firestore.collection('users').doc(_uid).set({
+        'isPremium': true,
+        'premiumPlan': planId,
+        'premiumExpiry': Timestamp.fromDate(expiry),
+      }, SetOptions(merge: true));
+
+      // Update local memory and cache
+      AppConfig.isPremiumNotifier.value = true;
+      AppConfig.premiumPlanNotifier.value = planId;
+      AppConfig.premiumExpiryNotifier.value = expiry;
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isPremium', true);
+      await prefs.setString('premiumPlan', planId);
+      await prefs.setString('premiumExpiry', expiry.toIso8601String());
+
+    } catch (e) {
+      debugPrint("Error upgrading user to premium in Firestore: $e");
+    }
   }
 
   /// Call this when a new scan is created or updated locally
@@ -231,12 +272,9 @@ class SyncService {
 
   /// Call this after logging in on a new device to fetch history
   static Future<void> syncFromCloudToLocal() async {
-    debugPrint("=== syncFromCloudToLocal STARTED ===");
     if (_uid == null) {
-      debugPrint("SYNC ABORTED: User UID is null!");
       return;
     }
-    debugPrint("SYNCING FOR UID: $_uid");
     
     bool hasCloudAggregates = false;
     
@@ -268,7 +306,6 @@ class SyncService {
     // 2. Sync Scans from Firestore
     try {
       final snapshot = await _firestore.collection('users').doc(_uid).collection('scans').get();
-      debugPrint("SYNC: Found ${snapshot.docs.length} scans in Firestore for user $_uid.");
       
       int savedCount = 0;
       for (var doc in snapshot.docs) {
@@ -310,7 +347,6 @@ class SyncService {
           // Skip unknown or null scans
           final eName = record.englishName?.trim().toLowerCase() ?? '';
           if (eName.isEmpty || eName == 'unknown' || eName == 'unknown fish') {
-            debugPrint("SYNC SKIP doc ${doc.id}: is unknown/empty ($eName)");
             continue;
           }
 
@@ -326,23 +362,19 @@ class SyncService {
             await doc.reference.update({'isArchived': false});
           }
 
-        // Save active scan to local Isar database
-        await DBService.isar.writeTxn(() async {
-          await DBService.isar.scanRecords.put(record);
-        });
-        savedCount++;
-        
-        // Log the ID and the count in the terminal
-        debugPrint("SYNC FETCHED [ID: ${record.id}] | Total Synced Count: $savedCount");
-        
-        // Download image if enabled
-        await _downloadImageIfNeeded(record.id, record.imagePath);
+          // Save active scan to local Isar database
+          await DBService.isar.writeTxn(() async {
+            await DBService.isar.scanRecords.put(record);
+          });
+          savedCount++;
+          
+          // Download image if enabled
+          await _downloadImageIfNeeded(record.id, record.imagePath);
         } catch (innerErr, stackTrace) {
           debugPrint("SYNC ERROR parsing/syncing doc ${doc.id}: $innerErr");
           debugPrint("SYNC ERROR STACKTRACE: $stackTrace");
         }
       }
-      debugPrint("SYNC: Successfully saved $savedCount scans to local DB.");
     } catch (e) {
       debugPrint("Error syncing scans from cloud: $e");
     }
@@ -504,11 +536,39 @@ class SyncService {
     }
     
     // Listen to user document for premium status
-    _userSubscription = _firestore.collection('users').doc(_uid).snapshots().listen((snapshot) {
+    _userSubscription = _firestore.collection('users').doc(_uid).snapshots().listen((snapshot) async {
       if (snapshot.exists) {
         final data = snapshot.data();
         if (data != null && data.containsKey('isPremium')) {
-          AppConfig.isPremiumUser = data['isPremium'] == true;
+          bool isPremium = data['isPremium'] == true;
+          
+          if (isPremium && data.containsKey('premiumExpiry')) {
+            final expiryTs = data['premiumExpiry'];
+            final expiry = _parseTimestamp(expiryTs);
+            if (expiry.isBefore(DateTime.now())) {
+              // Subscription expired!
+              isPremium = false;
+              // Silently downgrade in Firestore so it propagates everywhere
+              _firestore.collection('users').doc(_uid).set({
+                'isPremium': false,
+              }, SetOptions(merge: true));
+            } else {
+              AppConfig.premiumPlanNotifier.value = data['premiumPlan'] ?? '';
+              AppConfig.premiumExpiryNotifier.value = expiry;
+            }
+          }
+
+          AppConfig.isPremiumUser = isPremium;
+
+          // Sync to offline cache
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isPremium', isPremium);
+          if (isPremium) {
+            await prefs.setString('premiumPlan', AppConfig.premiumPlanNotifier.value);
+            if (AppConfig.premiumExpiryNotifier.value != null) {
+              await prefs.setString('premiumExpiry', AppConfig.premiumExpiryNotifier.value!.toIso8601String());
+            }
+          }
         }
       }
     });
@@ -582,7 +642,6 @@ class SyncService {
                 final localFile = File('${AppConfig.documentsPath}/${local.imagePath}');
                 if (localFile.existsSync()) localFile.deleteSync();
               }
-              debugPrint("COLD BOOT SYNC: Deleted local record ${local.id} as it was missing from cloud.");
             }
           }
         });

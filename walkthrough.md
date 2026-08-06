@@ -189,3 +189,110 @@ The `callbackDispatcher` in `main.dart` is initialized but the body is a TODO. T
 | **Phone OTP Auth** | High | SMS-based sign-in via Firebase Phone Auth for non-Google users |
 | **Legacy Scan Migration** | Medium | One-time `DBService.initialize()` migration to set `isUnlocked = true` on pre-existing scans |
 
+---
+
+## 8. v2.2 Session — iOS Camera Init Fix, Profile Grey Screen Fix
+
+*Completed: August 6, 2026*
+
+### Root Causes & Fixes
+
+| Bug | Root Cause | Fix | Files Changed |
+|:----|:-----------|:----|:--------------|
+| **`Undefined name 'Platform'` compile error** | `Platform.isAndroid` guard in `_initSecondaryServices()` used without `dart:io` import | Added `import 'dart:io';` to `main.dart` | `main.dart` |
+| **"No cameras found" on iOS** | `cameras = await availableCameras()` was inside `_initSecondaryServices()` — a fire-and-forget async called **after** `runApp()`. Since `IllishApp` was a `StatelessWidget`, the first frame rendered `cameras.isEmpty` as true and locked in the error scaffold permanently (no `setState` to rebuild). | Moved `cameras = await availableCameras()` into `main()` **before** `runApp()`. Removed the dead-end fallback. Added a safety re-fetch inside `CameraScreen._initCamera()`. | `main.dart`, `camera_screen.dart` |
+| **Grey screen on Profile after Camera** | `ProfileScreen.initState()` directly accessed `DBService.isar.scanRecords.watchLazy()` without verifying the Isar instance was initialized. If `DBService.initialize()` failed or was still completing, the `late Isar isar` field threw `LateInitializationError`. | Added `DBService.isInitialized` static getter. Wrapped all Isar watcher attachments and analytics methods in `isInitialized` checks and try-catch blocks. | `db_service.dart`, `profile_screen.dart` |
+
+### Detailed Changes
+
+#### `main.dart`
+- **Line 1**: Added `import 'dart:io';` for `Platform` class.
+- **Lines 62-68**: Moved `cameras = await availableCameras()` from secondary services into `main()`, before `runApp()`. This ensures the camera list is always populated before the first frame renders.
+- **Line 144**: Removed conditional `cameras.isEmpty` check — `IllishApp` now always routes to `CameraScreen`.
+
+#### `camera_screen.dart`
+- **`_initCamera()`**: Added fallback `availableCameras()` call if the global `cameras` list is somehow still empty when the camera screen initializes.
+
+#### `db_service.dart`
+- Added `static bool get isInitialized => Isar.instanceNames.contains(Isar.defaultName);` — allows screens to safely check DB readiness before accessing `isar`.
+
+#### `profile_screen.dart`
+- **`initState()`**: Isar `watchLazy()` listeners now conditionally attached only when `DBService.isInitialized` is true, wrapped in try-catch.
+- **`_loadAnalytics()`**: Early-returns if `!DBService.isInitialized`. Wrapped in try-catch.
+- **`_fetchAndShowDailyScansDialog()`**: Early-returns if DB not ready or widget unmounted. Wrapped in try-catch.
+
+### Decisions Made
+
+| Decision | Rationale |
+|:---------|:----------|
+| Move camera init before `runApp()` | Adds ~200ms to startup but guarantees cameras are always available on first frame. Eliminates an entire class of race condition bugs. |
+| Add `isInitialized` getter instead of making `isar` nullable | Minimal change surface — avoids rewriting every `DBService.isar` call site to handle nullability. |
+| Wrap in try-catch instead of showing error UI | Profile screen should degrade gracefully (show empty state) rather than crash. Users can pull-to-refresh once DB is ready. |
+
+---
+
+## 9. v2.3 Session — Auth, Premium, and Payment Prompts
+
+*Completed: August 6, 2026*
+
+### Enhancements
+
+| Feature | Detail | Files Changed |
+|:--------|:-------|:--------------|
+| **Forced Sign-In on Payment** | Intercepted the "Continue" (UPI Launch) button in the payment screen. If the user is a guest, they are pushed to the `ProfileScreen` with a `returnAfterSignIn` flag. Upon successful sign-in, the UI automatically pops back to the payment screen so checkout can resume smoothly. | `payment_sheet.dart`, `profile_screen.dart` |
+| **"Upgrade to Premium" Button** | Replaced the obsolete "MACHI MASTER" header text in the Profile Screen with a sleek, glowing "Upgrade to Premium" button (only visible if the user is not currently premium). Navigates directly to the `PaymentScreen` when tapped. | `profile_screen.dart` |
+| **Payment Bypass Counter** | Added a `SharedPreferences` counter (`paymentBypassCount`) that tracks how many times a non-premium user accesses the AI Freshness scanner. Instead of constantly harassing them with the `PaymentScreen`, the app now skips the payment prompt 2 out of every 3 times, directly serving an interstitial ad and unlocking the result. | `recognition_sheet.dart` |
+
+### Decisions Made
+
+| Decision | Rationale |
+|:---------|:----------|
+| `returnAfterSignIn` flag in `ProfileScreen` | Re-using the existing Profile screen for sign-in is cleaner than building a standalone modal, since it supports all 5 sign-in methods (Google, Apple, Email, Phone, Anon) out of the box. A simple stream listener on `AuthService.authStateChanges` pops the screen automatically once auth completes. |
+| Payment Bypass every 3rd time | Dramatically reduces user friction. Non-premium users who simply want to watch ads to unlock scans will not be forced to manually skip the `PaymentScreen` on every single scan. |
+
+---
+
+## 10. v2.4 Session — Razorpay Migration, FCM Campaigns, Debug Cleanup
+
+*Completed: August 7, 2026*
+
+### Payment System Migration (PhonePe → Razorpay)
+
+| Change | Detail | Files Changed |
+|:-------|:-------|:--------------|
+| **Razorpay SDK Integration** | Replaced PhonePe SDK (`phonepe_payment_sdk` + `crypto`) with `razorpay_flutter` in `pubspec.yaml`. Full Razorpay lifecycle with `clear()` before re-init to prevent listener leaks, `Completer<bool>` for async result handling, and `dispose()` method for cleanup. | `pubspec.yaml`, `payment_service.dart` |
+| **Premium Grant on Payment** | `_handlePaymentSuccess` now sets `AppConfig.isPremiumUser`, calls `SyncService.upgradeUserToPremium()`, and calls `DBService.unlockAllScans()` to permanently unlock all previous scans. | `payment_service.dart` |
+| **Razorpay Logo URL** | Added `razorpay_logo_url` Remote Config key. When set, it is passed as the `'image'` parameter in Razorpay SDK checkout options so the app logo appears on the Razorpay payment modal. | `remote_config_service.dart`, `payment_service.dart` |
+| **Offline Premium State** | Added `AppConfig.initOfflinePremiumState()` to `main()` before `runApp()`. Premium status is cached in `SharedPreferences` and restored on cold boot so the UI renders correctly without waiting for Firestore. | `main.dart`, `app_config.dart` |
+
+### Firebase Cloud Messaging (Campaign Support)
+
+| Change | Detail | Files Changed |
+|:-------|:-------|:--------------|
+| **Topic Subscription** | Added `messaging.subscribeToTopic('all_users')` in `_initSecondaryServices()`. Firebase Campaigns can now target the `all_users` topic to blast notifications to all app instances. | `main.dart` |
+| **Background & Terminated Handlers** | Added `FirebaseMessaging.onMessageOpenedApp` (background tap) and `FirebaseMessaging.instance.getInitialMessage()` (cold-start tap) handlers in `notification_service.dart`. Previously only foreground `onMessage` was handled, meaning notification taps did nothing when the app was backgrounded or killed. | `notification_service.dart` |
+| **Refactored Message Processing** | Extracted shared logic into `_handleRemoteMessage()` so all 3 FCM paths (foreground, background tap, cold-start tap) use the same deduplication and processing pipeline. | `notification_service.dart` |
+
+### Debug Print Cleanup
+
+| Change | Detail | Files Changed |
+|:-------|:-------|:--------------|
+| **Razorpay Verbose Logs Removed** | Removed 8 excessive `debugPrint` calls (`=== [RAZORPAY] INIT OPTIONS ===`, `CALLING open()`, `open() CALLED SUCCESSFULLY`, `FATAL ERROR`, `EVENT_PAYMENT_ERROR` JSON dump). Kept only essential error/success logs. | `payment_service.dart` |
+| **Remote Config Dump Removed** | Removed the 20-line `debugPrint` block that logged every single Remote Config value on fetch. | `remote_config_service.dart` |
+| **Unused Import Removed** | Removed orphaned `import 'dart:convert'` left over from PhonePe SDK removal. | `payment_service.dart` |
+
+### Configuration Cleanup
+
+| Change | Detail | Files Changed |
+|:-------|:-------|:--------------|
+| **LLDB Suppression Removed** | Removed `config: enable-lldb-debugging: false` from `pubspec.yaml`. LLDB debugging is now enabled (Flutter default). | `pubspec.yaml` |
+
+### Decisions Made
+
+| Decision | Rationale |
+|:---------|:----------|
+| `razorpay_logo_url` only for SDK checkout, not payment_sheet UI | The user explicitly wanted the logo only in the Razorpay native checkout modal, not in the app's own payment sheet which retains the shield icon. |
+| `subscribeToTopic('all_users')` over user-segment targeting | Simplest approach for campaigns — topic targeting works without any server-side user analytics setup. |
+| Remove all verbose debug prints | User requested cleanup of "unnecessary debug prints like the razor pay" from the codebase. Essential error/success logs preserved. |
+| Remove LLDB suppression | User explicitly requested bringing back LLDB debugging support. |
+

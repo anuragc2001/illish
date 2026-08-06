@@ -111,18 +111,35 @@ class NotificationService {
   }
 
   void _setupFirebaseMessaging() {
+    // 1. Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      final Map<String, dynamic> data = Map<String, dynamic>.from(message.data);
-      
-      if (message.notification != null) {
-        data['title'] = data['title'] ?? message.notification!.title ?? 'New Notification';
-        data['subtitle'] = data['subtitle'] ?? message.notification!.body ?? '';
-      }
-
-      data['id'] = data['id'] ?? message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
-
-      await _processIncomingNotification(data);
+      await _handleRemoteMessage(message);
     });
+
+    // 2. Background messages (when app is in background and user taps notification)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      await _handleRemoteMessage(message);
+    });
+
+    // 3. Terminated messages (when app is closed and user taps notification)
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) async {
+      if (message != null) {
+        await _handleRemoteMessage(message);
+      }
+    });
+  }
+
+  Future<void> _handleRemoteMessage(RemoteMessage message) async {
+    final Map<String, dynamic> data = Map<String, dynamic>.from(message.data);
+    
+    if (message.notification != null) {
+      data['title'] = data['title'] ?? message.notification!.title ?? 'New Notification';
+      data['subtitle'] = data['subtitle'] ?? message.notification!.body ?? '';
+    }
+
+    data['id'] = data['id'] ?? message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+    await _processIncomingNotification(data);
   }
 
   void _setupFirestoreSync(String uid) {

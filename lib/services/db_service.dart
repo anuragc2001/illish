@@ -12,6 +12,7 @@ import 'sync_service.dart';
 
 class DBService {
   static late Isar isar;
+  static bool get isInitialized => Isar.instanceNames.contains(Isar.defaultName);
 
   static Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -22,28 +23,10 @@ class DBService {
         directory: dir.path,
         inspector: kDebugMode,
       );
-      void printIsarLink() {
-        if (kDebugMode) {
-          final msg = '\n════════════════════════════════════════════════════════════\n'
-              '📦 Isar DB Path: ${dir.path}\n'
-              '🔍 Isar Inspector: https://inspector.isar.dev/#/3.1.0+1/\n'
-              '════════════════════════════════════════════════════════════\n';
-          print(msg);
-          dev.log(msg, name: 'ISAR_INSPECTOR');
-        }
-      }
-
-      printIsarLink();
-      // Re-print after 3 seconds so flutter run logger catches it after attaching stdout stream
-      Future.delayed(const Duration(seconds: 3), printIsarLink);
     } catch (e) {
       debugPrint('⚠️ Error opening Isar DB: $e');
       if (Isar.instanceNames.contains(Isar.defaultName)) {
         isar = Isar.getInstance()!;
-        if (kDebugMode) {
-          print('📦 Isar DB Path (Existing Instance): ${dir.path}');
-          print('🔍 Isar Inspector: https://inspector.isar.dev/#/3.1.0+1/');
-        }
       } else {
         rethrow;
       }

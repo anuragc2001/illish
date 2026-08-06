@@ -5,8 +5,11 @@ import '../core/theme.dart';
 import 'results_screen.dart';
 import 'payment_sheet.dart';
 import '../config/app_config.dart';
+import '../config/app_config.dart';
 import 'widgets/banner_ad_widget.dart';
 import '../services/admob_service.dart';
+import '../services/db_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RecognitionSheet extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -49,21 +52,40 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
       return;
     }
 
-    setState(() => _isUnlocking = true);
-    await Future.delayed(const Duration(milliseconds: 400));
+    final prefs = await SharedPreferences.getInstance();
+    int bypassCount = prefs.getInt('paymentBypassCount') ?? 0;
     
-    if (!mounted) return;
-    Navigator.pop(context);
-    Navigator.push(context, PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: widget.aiData, scanId: widget.scanId),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        const begin = Offset(0.0, 1.0);
-        const end = Offset.zero;
-        const curve = Curves.easeOutCubic;
-        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-        return SlideTransition(position: animation.drive(tween), child: child);
-      },
-    ));
+    if (AppConfig.kEnablePayment && bypassCount % 3 == 0) {
+      prefs.setInt('paymentBypassCount', bypassCount + 1);
+      
+      setState(() => _isUnlocking = true);
+      await Future.delayed(const Duration(milliseconds: 400));
+      
+      if (!mounted) return;
+      Navigator.pop(context);
+      Navigator.push(context, PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => PaymentScreen(aiData: widget.aiData, scanId: widget.scanId),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0);
+          const end = Offset.zero;
+          const curve = Curves.easeOutCubic;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+      ));
+    } else {
+      prefs.setInt('paymentBypassCount', bypassCount + 1);
+      setState(() => _isUnlocking = true);
+      
+      AdMobService.showInterstitialAd(onAdDismissed: () async {
+        if (widget.scanId != null) {
+          await DBService.unlockScan(widget.scanId!);
+        }
+        if (!mounted) return;
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: widget.aiData)));
+      });
+    }
   }
 
   @override

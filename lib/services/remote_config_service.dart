@@ -7,11 +7,46 @@ class RemoteConfigService {
   static final FirebaseRemoteConfig _remoteConfig =
       FirebaseRemoteConfig.instance;
 
+  // Global update notifier for simple usages if any
   static final ValueNotifier<int> configUpdateNotifier = ValueNotifier<int>(0);
+
+  // Individual ValueNotifiers for granular UI rebuilding
+  static final ValueNotifier<String> geminiApiKey = ValueNotifier('');
+  static final ValueNotifier<String> geminiModel = ValueNotifier(
+    'gemini-3.6-flash',
+  );
+  static final ValueNotifier<String> youtubeApiKey = ValueNotifier('');
+  static final ValueNotifier<String> admobBannerIdAndroid = ValueNotifier(
+    'ca-app-pub-3940256099942544/6300978111',
+  );
+  static final ValueNotifier<String> admobBannerIdIos = ValueNotifier(
+    'ca-app-pub-3940256099942544/2934735716',
+  );
+  static final ValueNotifier<String> admobInterstitialIdAndroid = ValueNotifier(
+    'ca-app-pub-3940256099942544/1033173712',
+  );
+  static final ValueNotifier<String> admobInterstitialIdIos = ValueNotifier(
+    'ca-app-pub-3940256099942544/4411468910',
+  );
+  static final ValueNotifier<bool> mockMode = ValueNotifier(true);
+  static final ValueNotifier<bool> enablePayment = ValueNotifier(true);
+  static final ValueNotifier<bool> enableVendorPayment = ValueNotifier(true);
+  static final ValueNotifier<bool> syncImagesToCloud = ValueNotifier(false);
+  static final ValueNotifier<String> priceWeekly = ValueNotifier('₹29');
+  static final ValueNotifier<String> priceMonthly = ValueNotifier('₹99');
+  static final ValueNotifier<String> priceAnnual = ValueNotifier('₹499');
+  static final ValueNotifier<bool> showSinglePrice = ValueNotifier(false);
+  static final ValueNotifier<String> razorpayKeyId = ValueNotifier(
+    'rzp_test_your_key_here',
+  );
+  static final ValueNotifier<String> razorpayLogoUrl = ValueNotifier('');
+  static final ValueNotifier<int> fetchIntervalSeconds = ValueNotifier(
+    3600,
+  ); // 1 hour
 
   static Future<void> initialize() async {
     try {
-      // Set default values (falling back to .env if available)
+      // Set defaults based on .env where applicable
       await _remoteConfig.setDefaults({
         'gemini_api_key': dotenv.env['GEMINI_API_KEY'] ?? '',
         'gemini_model': dotenv.env['GEMINI_MODEL'] ?? 'gemini-3.6-flash',
@@ -29,36 +64,50 @@ class RemoteConfigService {
             dotenv.env['ADMOB_INTERSTITIAL_ID_IOS'] ??
             'ca-app-pub-3940256099942544/4411468910',
         'mock_mode': true,
-        'enable_upi_payments': true,
+        'enable_payment': true,
+        'enable_vendor_payment': true,
         'sync_images_to_cloud': false,
         'price_weekly': dotenv.env['PRICE_WEEKLY'] ?? '₹29',
         'price_monthly': dotenv.env['PRICE_MONTHLY'] ?? '₹99',
         'price_annual': dotenv.env['PRICE_ANNUAL'] ?? '₹499',
         'show_single_price': false,
-        'phonepe_merchant_id':
-            dotenv.env['PHONEPE_MERCHANT_ID'] ?? 'PGTESTPAYUAT',
-        'phonepe_salt_key':
-            dotenv.env['PHONEPE_SALT_KEY'] ??
-            '099eb0cd-02cf-4e2a-8aca-3e6c6aff0399',
-        'phonepe_salt_index': dotenv.env['PHONEPE_SALT_INDEX'] ?? '1',
-        'phonepe_app_id': dotenv.env['PHONEPE_APP_ID'] ?? '',
-        'phonepe_environment': dotenv.env['PHONEPE_ENVIRONMENT'] ?? 'SANDBOX',
+        'razorpay_key_id':
+            dotenv.env['RAZORPAY_KEY_ID'] ?? 'rzp_test_your_key_here',
+        'razorpay_logo_url': dotenv.env['RAZORPAY_LOGO_URL'] ?? '',
+        'fetch_interval_seconds': 3600,
       });
+
+      // Initial local state update before fetch to pick up .env defaults
+      _updateNotifiers();
 
       await _remoteConfig.setConfigSettings(
         RemoteConfigSettings(
           fetchTimeout: const Duration(minutes: 1),
-          minimumFetchInterval: const Duration(days: 1),
+          minimumFetchInterval: Duration(seconds: fetchIntervalSeconds.value),
         ),
       );
 
       await _remoteConfig.fetchAndActivate();
+      _updateNotifiers();
 
       // Listen to real-time updates safely across threads
       _remoteConfig.onConfigUpdated.listen((event) async {
         try {
           await _remoteConfig.activate();
-          configUpdateNotifier.value++;
+          _updateNotifiers();
+
+          // Re-apply interval settings if it changed
+          if (event.updatedKeys.contains('fetch_interval_seconds')) {
+            await _remoteConfig.setConfigSettings(
+              RemoteConfigSettings(
+                fetchTimeout: const Duration(minutes: 1),
+                minimumFetchInterval: Duration(
+                  seconds: fetchIntervalSeconds.value,
+                ),
+              ),
+            );
+          }
+
           debugPrint("Remote Config Updated: ${event.updatedKeys}");
         } catch (e) {
           debugPrint("Error activating updated remote config: $e");
@@ -69,39 +118,35 @@ class RemoteConfigService {
     }
   }
 
-  static String get geminiApiKey => _remoteConfig.getString('gemini_api_key');
-  static String get geminiModel => _remoteConfig.getString('gemini_model');
+  static void _updateNotifiers() {
+    geminiApiKey.value = _remoteConfig.getString('gemini_api_key');
+    geminiModel.value = _remoteConfig.getString('gemini_model');
+    youtubeApiKey.value = _remoteConfig.getString('youtube_api_key');
+    admobBannerIdAndroid.value = _remoteConfig.getString(
+      'admob_banner_id_android',
+    );
+    admobBannerIdIos.value = _remoteConfig.getString('admob_banner_id_ios');
+    admobInterstitialIdAndroid.value = _remoteConfig.getString(
+      'admob_interstitial_id_android',
+    );
+    admobInterstitialIdIos.value = _remoteConfig.getString(
+      'admob_interstitial_id_ios',
+    );
+    mockMode.value = _remoteConfig.getBool('mock_mode');
+    enablePayment.value = _remoteConfig.getBool('enable_payment');
+    enableVendorPayment.value = _remoteConfig.getBool('enable_vendor_payment');
+    syncImagesToCloud.value = _remoteConfig.getBool('sync_images_to_cloud');
+    priceWeekly.value = _remoteConfig.getString('price_weekly');
+    priceMonthly.value = _remoteConfig.getString('price_monthly');
+    priceAnnual.value = _remoteConfig.getString('price_annual');
+    showSinglePrice.value = _remoteConfig.getBool('show_single_price');
+    razorpayKeyId.value = _remoteConfig.getString('razorpay_key_id');
+    razorpayLogoUrl.value = _remoteConfig.getString('razorpay_logo_url');
 
-  static String get youtubeApiKey => _remoteConfig.getString('youtube_api_key');
+    // fetch_interval_seconds could be int, so getInt
+    fetchIntervalSeconds.value = _remoteConfig.getInt('fetch_interval_seconds');
+    if (fetchIntervalSeconds.value <= 0) fetchIntervalSeconds.value = 3600;
 
-  static String get admobBannerIdAndroid =>
-      _remoteConfig.getString('admob_banner_id_android');
-  static String get admobBannerIdIos =>
-      _remoteConfig.getString('admob_banner_id_ios');
-
-  static String get admobInterstitialIdAndroid =>
-      _remoteConfig.getString('admob_interstitial_id_android');
-  static String get admobInterstitialIdIos =>
-      _remoteConfig.getString('admob_interstitial_id_ios');
-
-  static bool get mockMode => _remoteConfig.getBool('mock_mode');
-  static bool get enableUpiPayments =>
-      _remoteConfig.getBool('enable_upi_payments');
-  static bool get syncImagesToCloud =>
-      _remoteConfig.getBool('sync_images_to_cloud');
-
-  static String get priceWeekly => _remoteConfig.getString('price_weekly');
-  static String get priceMonthly => _remoteConfig.getString('price_monthly');
-  static String get priceAnnual => _remoteConfig.getString('price_annual');
-  static bool get showSinglePrice => _remoteConfig.getBool('show_single_price');
-
-  static String get phonepeMerchantId =>
-      _remoteConfig.getString('phonepe_merchant_id');
-  static String get phonepeSaltKey =>
-      _remoteConfig.getString('phonepe_salt_key');
-  static String get phonepeSaltIndex =>
-      _remoteConfig.getString('phonepe_salt_index');
-  static String get phonepeAppId => _remoteConfig.getString('phonepe_app_id');
-  static String get phonepeEnvironment =>
-      _remoteConfig.getString('phonepe_environment');
+    configUpdateNotifier.value++;
+  }
 }

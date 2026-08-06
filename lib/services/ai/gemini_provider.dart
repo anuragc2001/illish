@@ -12,8 +12,8 @@ class GeminiProvider implements AIProvider {
   }
   
   void _initModel() {
-    final apiKey = RemoteConfigService.geminiApiKey;
-    final modelName = RemoteConfigService.geminiModel;
+    final apiKey = RemoteConfigService.geminiApiKey.value;
+    final modelName = RemoteConfigService.geminiModel.value;
     if (apiKey.isNotEmpty) {
       _cloudModel = GenerativeModel(model: modelName.isNotEmpty ? modelName : 'gemini-3.6-flash', apiKey: apiKey);
     } else {

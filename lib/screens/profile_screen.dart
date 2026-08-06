@@ -22,9 +22,11 @@ import '../core/models/daily_scan_aggregate.dart';
 import '../services/sync_service.dart';
 import '../services/notification_service.dart';
 import 'widgets/freshness_meter.dart';
+import 'payment_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  final bool returnAfterSignIn;
+  const ProfileScreen({Key? key, this.returnAfterSignIn = false}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -48,6 +50,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late PageController _pageController;
   StreamSubscription? _isarSub;
   StreamSubscription? _aggSub;
+  StreamSubscription? _authSub;
+  Timer? _debounceTimer;
+
+  void _debouncedLoadAnalytics() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) _loadAnalytics();
+    });
+  }
 
   @override
   void initState() {
@@ -58,12 +69,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadAnalytics();
 
     // Listen to changes in Isar to auto-update when SyncService pulls down cloud data
-    _isarSub = DBService.isar.scanRecords.watchLazy().listen((_) {
-      if (mounted) _loadAnalytics();
-    });
-    _aggSub = DBService.isar.dailyScanAggregates.watchLazy().listen((_) {
-      if (mounted) _loadAnalytics();
-    });
+    if (DBService.isInitialized) {
+      try {
+        _isarSub = DBService.isar.scanRecords.watchLazy().listen((_) {
+          if (mounted) _debouncedLoadAnalytics();
+        });
+        _aggSub = DBService.isar.dailyScanAggregates.watchLazy().listen((_) {
+          if (mounted) _debouncedLoadAnalytics();
+        });
+      } catch (e) {
+        debugPrint("Error setting up Isar listeners in ProfileScreen: $e");
+      }
+    }
+
+    if (widget.returnAfterSignIn) {
+      _authSub = AuthService.authStateChanges.listen((user) {
+        if (user != null && mounted) {
+          Navigator.pop(context);
+        }
+      });
+    }
   }
 
   @override
@@ -71,6 +96,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _pageController.dispose();
     _isarSub?.cancel();
     _aggSub?.cancel();
+    _authSub?.cancel();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -91,105 +118,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _avgFreshnessScore = 0;
 
   Future<void> _loadAnalytics() async {
-    var aggregates = await DBService.isar.dailyScanAggregates.where().findAll();
-    var allScanRecords = await DBService.isar.scanRecords.where().findAll();
+    if (!DBService.isInitialized) return;
+    
+    try {
+      var aggregates = await DBService.isar.dailyScanAggregates.where().findAll();
+      var allScanRecords = await DBService.isar.scanRecords.where().findAll();
 
-    // Removed conditional cloud fetch since it's now handled unconditionally in initState
-    if (aggregates.isEmpty && allScanRecords.isEmpty) {
-      // Pull cloud records to populate local aggregate history on fresh install/login
-      await SyncService.syncFromCloudToLocal();
-      aggregates = await DBService.isar.dailyScanAggregates.where().findAll();
-      allScanRecords = await DBService.isar.scanRecords.where().findAll();
-    }
+      if (aggregates.isEmpty && allScanRecords.isEmpty) {
+        // Pull cloud records to populate local aggregate history on fresh install/login
+        await SyncService.syncFromCloudToLocal();
+        if (DBService.isInitialized) {
+          aggregates = await DBService.isar.dailyScanAggregates.where().findAll();
+          allScanRecords = await DBService.isar.scanRecords.where().findAll();
+        }
+      }
 
-    // Filter clean scan records for monthly calculations
-    final cleanScanRecords = allScanRecords.where((s) {
-      final eName = s.englishName?.trim().toLowerCase() ?? '';
-      return eName.isNotEmpty && eName != 'unknown' && eName != 'unknown fish';
-    }).toList();
+      // Filter clean scan records for monthly calculations
+      final cleanScanRecords = allScanRecords.where((s) {
+        final eName = s.englishName?.trim().toLowerCase() ?? '';
+        return eName.isNotEmpty && eName != 'unknown' && eName != 'unknown fish';
+      }).toList();
 
-    final targetMonth = DateTime.now(); // Current real-world month
+      final targetMonth = DateTime.now(); // Current real-world month
 
-    // --- 1. ALL-TIME METRICS (from Aggregate DB) ---
-    int allTimeTotalScans = 0;
-    Map<String, int> allTimeFishCounts = {};
-    Map<DateTime, int> heatmap = {};
-    Map<DateTime, DailyScanAggregate> dailyMap = {};
+      // --- 1. ALL-TIME METRICS (from Aggregate DB) ---
+      int allTimeTotalScans = 0;
+      Map<String, int> allTimeFishCounts = {};
+      Map<DateTime, int> heatmap = {};
+      Map<DateTime, DailyScanAggregate> dailyMap = {};
 
-    for (var agg in aggregates) {
-      allTimeTotalScans += agg.totalScans;
-      heatmap[agg.date] = agg.totalScans;
-      dailyMap[agg.date] = agg;
+      for (var agg in aggregates) {
+        allTimeTotalScans += agg.totalScans;
+        heatmap[agg.date] = agg.totalScans;
+        dailyMap[agg.date] = agg;
 
-      for (var fc in agg.fishCounts) {
-        final parts = fc.split(':');
-        if (parts.length == 2) {
-          final name = parts[0].trim();
-          final lowerName = name.toLowerCase();
-          if (lowerName != 'unknown' && lowerName != 'unknown fish' && lowerName.isNotEmpty) {
-            final count = int.tryParse(parts[1]) ?? 0;
-            allTimeFishCounts[name] = (allTimeFishCounts[name] ?? 0) + count;
+        for (var fc in agg.fishCounts) {
+          final parts = fc.split(':');
+          if (parts.length == 2) {
+            final name = parts[0].trim();
+            final lowerName = name.toLowerCase();
+            if (lowerName != 'unknown' && lowerName != 'unknown fish' && lowerName.isNotEmpty) {
+              final count = int.tryParse(parts[1]) ?? 0;
+              allTimeFishCounts[name] = (allTimeFishCounts[name] ?? 0) + count;
+            }
           }
         }
       }
-    }
 
-    // Fallbacks if aggregates DB was empty/new
-    if (aggregates.isEmpty && cleanScanRecords.isNotEmpty) {
-      allTimeTotalScans = cleanScanRecords.length;
-    }
+      // Fallbacks if aggregates DB was empty/new
+      if (aggregates.isEmpty && cleanScanRecords.isNotEmpty) {
+        allTimeTotalScans = cleanScanRecords.length;
+      }
 
-    if (allTimeFishCounts.isEmpty && cleanScanRecords.isNotEmpty) {
-      for (var s in cleanScanRecords) {
-        final name = DBService.normalizeFishName(s.englishName);
-        if (name != 'Unknown') {
-          allTimeFishCounts[name] = (allTimeFishCounts[name] ?? 0) + 1;
+      if (allTimeFishCounts.isEmpty && cleanScanRecords.isNotEmpty) {
+        for (var s in cleanScanRecords) {
+          final name = DBService.normalizeFishName(s.englishName);
+          if (name != 'Unknown') {
+            allTimeFishCounts[name] = (allTimeFishCounts[name] ?? 0) + 1;
+          }
         }
       }
-    }
 
-    String topFish = "--";
-    if (allTimeFishCounts.isNotEmpty) {
-      var sorted = allTimeFishCounts.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      topFish = sorted.first.key;
-    }
-
-    // --- 2. MONTHLY METRICS (from Scan DB) ---
-    final currentMonthRecords = cleanScanRecords.where((s) {
-      final localDate = s.timestamp.toLocal();
-      return localDate.year == targetMonth.year &&
-          localDate.month == targetMonth.month;
-    }).toList();
-
-    int monthTotalScans = currentMonthRecords.length;
-
-    double totalFreshnessSum = 0;
-    int freshnessCount = 0;
-
-    for (var scan in currentMonthRecords) {
-      if (scan.freshnessScore != null && scan.freshnessScore! > 0.0) {
-        double score = scan.freshnessScore!;
-        if (score <= 1.0) score = score * 100; // normalize 0-1.0 to 0-100
-        totalFreshnessSum += score;
-        freshnessCount++;
+      String topFish = "--";
+      if (allTimeFishCounts.isNotEmpty) {
+        var sorted = allTimeFishCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        topFish = sorted.first.key;
       }
-    }
 
-    int avgFreshness = freshnessCount > 0
-        ? (totalFreshnessSum / freshnessCount).round()
-        : 0;
+      // --- 2. MONTHLY METRICS (from Scan DB) ---
+      final currentMonthRecords = cleanScanRecords.where((s) {
+        final localDate = s.timestamp.toLocal();
+        return localDate.year == targetMonth.year &&
+            localDate.month == targetMonth.month;
+      }).toList();
 
-    if (mounted) {
-      setState(() {
-        _totalScans = allTimeTotalScans;
-        _monthTotalScans = monthTotalScans;
-        _avgFreshnessScore = avgFreshness;
-        _topFish = topFish;
-        _scanHeatmap = heatmap;
-        _fishCounts = allTimeFishCounts;
-        _dailyAggregates = dailyMap;
-      });
+      int monthTotalScans = currentMonthRecords.length;
+
+      double totalFreshnessSum = 0;
+      int freshnessCount = 0;
+
+      for (var scan in currentMonthRecords) {
+        if (scan.freshnessScore != null && scan.freshnessScore! > 0.0) {
+          double score = scan.freshnessScore!;
+          if (score <= 1.0) score = score * 100; // normalize 0-1.0 to 0-100
+          totalFreshnessSum += score;
+          freshnessCount++;
+        }
+      }
+
+      int avgFreshness = freshnessCount > 0
+          ? (totalFreshnessSum / freshnessCount).round()
+          : 0;
+
+      if (mounted) {
+        setState(() {
+          _totalScans = allTimeTotalScans;
+          _monthTotalScans = monthTotalScans;
+          _avgFreshnessScore = avgFreshness;
+          _topFish = topFish;
+          _scanHeatmap = heatmap;
+          _fishCounts = allTimeFishCounts;
+          _dailyAggregates = dailyMap;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading analytics: $e");
     }
   }
 
@@ -368,38 +402,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // User Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ValueListenableBuilder<bool>(
+                          valueListenable: AppConfig.isPremiumNotifier,
+                          builder: (context, isPremium, child) {
+                            final showPremium = isLoggedIn && isPremium;
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  "MACHI MASTER",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white54,
-                                    letterSpacing: 1.0,
-                                  ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (!showPremium)
+                                      AppConfig.kEnablePayment ? ShimmeringPremiumButton(
+                                        onTap: () {
+                                          Navigator.push(context, MaterialPageRoute(
+                                            builder: (_) => const PaymentScreen(aiData: {}, scanId: null)
+                                          ));
+                                        },
+                                      ) : const SizedBox.shrink()
+                                    else
+                                      Text(
+                                        "ILLISH PRO",
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber,
+                                          letterSpacing: 1.0,
+                                        ),
+                                      ),
+                                    Text(
+                                      "Hi, $firstName!",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "Hi, $firstName!",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Profile Avatar with Subtle Premium Ring & PRO Badge
-                            ValueListenableBuilder<bool>(
-                              valueListenable: AppConfig.isPremiumNotifier,
-                              builder: (context, isPremium, child) {
-                                final showPremium = isLoggedIn && isPremium;
-                                return Stack(
+                                // Profile Avatar with Subtle Premium Ring & PRO Badge
+                                Stack(
                                   clipBehavior: Clip.none,
                                   children: [
                                     Container(
@@ -476,10 +518,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         ),
                                       ),
                                   ],
-                                );
-                              },
-                            ),
-                          ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 24),
@@ -1037,24 +1079,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchAndShowDailyScansDialog(DateTime date) async {
-    // 1. Check local DB
-    List<ScanRecord> scans = await DBService.isar.scanRecords
-        .filter()
-        .timestampBetween(
-          DateTime(date.year, date.month, date.day),
-          DateTime(date.year, date.month, date.day, 23, 59, 59),
-        )
-        .findAll();
+    if (!DBService.isInitialized) return;
+    try {
+      // 1. Check local DB
+      List<ScanRecord> scans = await DBService.isar.scanRecords
+          .filter()
+          .timestampBetween(
+            DateTime(date.year, date.month, date.day),
+            DateTime(date.year, date.month, date.day, 23, 59, 59),
+          )
+          .findAll();
 
-    // 2. If not local, must be archived -> fetch from Firebase
-    if (scans.isEmpty) {
-      setState(() => _isLoading = true);
-      scans = await SyncService.fetchArchivedScansForDate(date);
-      setState(() => _isLoading = false);
-    }
+      // 2. If not local, must be archived -> fetch from Firebase
+      if (scans.isEmpty) {
+        setState(() => _isLoading = true);
+        scans = await SyncService.fetchArchivedScansForDate(date);
+        setState(() => _isLoading = false);
+      }
 
-    if (scans.isNotEmpty) {
-      _showDailyScansDialog(date, scans);
+      if (scans.isNotEmpty && mounted) {
+        _showDailyScansDialog(date, scans);
+      }
+    } catch (e) {
+      debugPrint("Error fetching daily scans: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -1599,6 +1647,94 @@ class _NotificationDialogState extends State<NotificationDialog> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class ShimmeringPremiumButton extends StatefulWidget {
+  final VoidCallback onTap;
+  
+  const ShimmeringPremiumButton({Key? key, required this.onTap}) : super(key: key);
+
+  @override
+  State<ShimmeringPremiumButton> createState() => _ShimmeringPremiumButtonState();
+}
+
+class _ShimmeringPremiumButtonState extends State<ShimmeringPremiumButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.all(2), // Border width
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(100),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.neonCyan.withOpacity(0.4),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                )
+              ],
+              gradient: SweepGradient(
+                colors: [
+                  AppTheme.neonCyan.withOpacity(0.1),
+                  AppTheme.neonCyan,
+                  Colors.white,
+                  AppTheme.neonCyan,
+                  AppTheme.neonCyan.withOpacity(0.1),
+                ],
+                stops: const [0.0, 0.75, 0.85, 0.95, 1.0],
+                transform: GradientRotation(_controller.value * 2 * pi),
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.workspace_premium, color: AppTheme.neonCyan, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Unlock PRO",
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.neonCyan,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

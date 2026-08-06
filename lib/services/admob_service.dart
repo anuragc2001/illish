@@ -13,10 +13,10 @@ class AdMobService {
   // Fetch Ad Unit IDs from Remote Config
   static String get bannerAdUnitId {
     if (Platform.isAndroid) {
-      final id = RemoteConfigService.admobBannerIdAndroid;
+      final id = RemoteConfigService.admobBannerIdAndroid.value;
       return id.isNotEmpty ? id : 'ca-app-pub-3940256099942544/6300978111';
     } else if (Platform.isIOS) {
-      final id = RemoteConfigService.admobBannerIdIos;
+      final id = RemoteConfigService.admobBannerIdIos.value;
       return id.isNotEmpty ? id : 'ca-app-pub-3940256099942544/2934735716';
     }
     throw UnsupportedError('Unsupported platform');
@@ -24,10 +24,10 @@ class AdMobService {
 
   static String get interstitialAdUnitId {
     if (Platform.isAndroid) {
-      final id = RemoteConfigService.admobInterstitialIdAndroid;
+      final id = RemoteConfigService.admobInterstitialIdAndroid.value;
       return id.isNotEmpty ? id : 'ca-app-pub-3940256099942544/1033173712';
     } else if (Platform.isIOS) {
-      final id = RemoteConfigService.admobInterstitialIdIos;
+      final id = RemoteConfigService.admobInterstitialIdIos.value;
       return id.isNotEmpty ? id : 'ca-app-pub-3940256099942544/4411468910';
     }
     throw UnsupportedError('Unsupported platform');

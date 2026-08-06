@@ -237,3 +237,265 @@ Tell designers:
 ## Tip for Design Team
 
 Run these prompts in Midjourney using the --ar 9:16 aspect ratio tag for phone screens, or drop them into ChatGPT Plus (DALL-E 3). Either tool will generate 4 variations per screen, giving the design team a visual baseline to start building the actual Figma components.
+
+---
+
+## Atomic File-by-File Codebase Context Map
+
+> **Snapshot Date**: 2026-08-06
+> **Purpose**: Agent-facing reference for past and present codebase state.
+> **Rule**: Read this section BEFORE making changes to any file listed below.
+
+### Directory Structure
+
+```
+lib/
+├── main.dart                        # App entry, service init, IllishApp widget
+├── firebase_options.dart            # Auto-generated FlutterFire config
+├── flavors.dart                     # Build flavor definitions
+├── config/
+│   └── app_config.dart              # Runtime flags, premium state, paths
+├── core/
+│   ├── theme.dart                   # AppTheme (dark theme, color constants)
+│   └── models/
+│       ├── scan_record.dart         # @collection — primary scan data model
+│       ├── daily_scan_aggregate.dart # @collection — per-day scan summary
+│       ├── recipe_cache.dart        # @collection — cached recipe JSON
+│       ├── app_notification_model.dart # @collection — persisted notifications
+│       └── upi_app.dart             # Plain class — UPI app descriptor
+├── screens/
+│   ├── camera_screen.dart           # Main camera UI (73KB, ~1750 lines)
+│   ├── profile_screen.dart          # User profile, analytics, calendar (65KB)
+│   ├── results_screen.dart          # Full scan result display (74KB)
+│   ├── recognition_sheet.dart       # Bottom sheet after scan
+│   ├── payment_sheet.dart           # Premium plan selection sheet
+│   ├── payment_sheet_single.dart    # Single-price variant
+│   ├── payment_sheet_copy.dart      # DEAD FILE — unused copy
+│   └── widgets/
+│       ├── banner_ad_widget.dart    # AdMob banner
+│       ├── email_auth_sheet.dart    # Email sign-in bottom sheet
+│       ├── phone_auth_sheet.dart    # Phone OTP sign-in bottom sheet
+│       ├── freshness_meter.dart     # Animated arc freshness gauge
+│       ├── share_card_preview.dart  # Shareable scan card generator
+│       └── upi_picker_sheet.dart    # UPI app picker for payments
+└── services/
+    ├── ai_service.dart              # AI orchestrator (mock mode + Gemini)
+    ├── ai/
+    │   ├── ai_provider.dart         # Abstract AI provider interface
+    │   └── gemini_provider.dart     # Gemini API implementation
+    ├── auth_service.dart            # Firebase Auth (Google, Apple, Email, Phone)
+    ├── db_service.dart              # Isar database CRUD + image management
+    ├── sync_service.dart            # Firestore ↔ Isar bidirectional sync
+    ├── notification_service.dart    # FCM + Firestore notification sync
+    ├── payment_service.dart         # Razorpay SDK + UPI intent launcher
+    ├── remote_config_service.dart   # Firebase Remote Config wrapper
+    └── admob_service.dart           # Google AdMob initialization
+```
+
+---
+
+### `lib/main.dart`
+
+**Role**: App entry point. Initializes all services and launches UI.
+
+**Current Initialization Order (synchronous, blocking)**:
+1. `WidgetsFlutterBinding.ensureInitialized()`
+2. `dotenv.load()` — `.env` file for local secrets
+3. `Firebase.initializeApp()` — with platform options
+4. `FirebaseMessaging.onBackgroundMessage()` — registers handler
+5. `DBService.initialize()` — opens Isar
+6. `cameras = await availableCameras()` — fetched BEFORE `runApp()`
+7. `runApp(const IllishApp())`
+8. `_initSecondaryServices()` — fire-and-forget async
+
+**Secondary Services (non-blocking, post-UI)**:
+RemoteConfig → AdMob → FCM Permissions + Topic Subscription → NotificationService → Workmanager (Android only) → SyncService (if logged in)
+
+**Key Invariants**:
+- `cameras` global is populated BEFORE `runApp()`.
+- `IllishApp` always routes to `CameraScreen` — no conditional fallback.
+- `Workmanager` is guarded by `Platform.isAndroid` (requires `dart:io`).
+- `_firebaseMessagingBackgroundHandler` runs in a separate isolate.
+- `AppConfig.initOfflinePremiumState()` runs before `runApp()` to load cached premium state from `SharedPreferences`.
+
+---
+
+### `lib/config/app_config.dart`
+
+**Role**: Central runtime configuration flags.
+
+| Property | Source | Default |
+|----------|--------|---------|
+| `kMockMode` | `RemoteConfigService.mockMode` | `true` (from Remote Config) |
+| `isPremiumUser` | `ValueNotifier<bool>` set by SyncService Firestore listener | `false` |
+| `documentsPath` | Set during `DBService.initialize()` | `''` |
+| `kEnableUpiPayments` | Remote Config | `true` |
+| `kSyncImagesToCloud` | Remote Config | `false` |
+
+**Critical Contract**: `documentsPath` MUST be set before any `DBService.getImagePath()` call.
+
+---
+
+### `lib/core/models/scan_record.dart`
+
+**Fields**: `id` (epoch ms), `imagePath` (filename only), `englishName`, `localName`, `region`, `freshnessScore` (0.0–1.0 or 0–100), `freshnessStatus`, `freshnessEvidence`, `bestCuts[]`, `idealFor[]`, `trickeryTips[]`, `suggestedPrice`, `marketAvgPrice`, `timestamp`, `isSynced`, `isBookmark`, `isUnlocked`, `isHidden`.
+
+**Important**: `imagePath` stores **filename only** (e.g., `1722902400000_photo.jpg`). Resolved at runtime via `DBService.getImagePath()`.
+
+**Lifecycle**: Non-bookmarked scans older than 30 days are auto-archived by `DBService.saveScan()`.
+
+> ⚠️ **Agent Rule**: Any changes MUST be followed by `flutter pub run build_runner build --delete-conflicting-outputs`.
+
+---
+
+### `lib/core/models/daily_scan_aggregate.dart`
+
+**Fields**: `id`, `date` (unique indexed, midnight-aligned), `totalScans`, `topFishName`, `fishCounts` (format: `["Rohu:3", "Hilsa:1"]`).
+
+**Data Flow**: Updated by `DBService.updateDailyAggregate()` on every new scan. Synced to Firestore by `SyncService.upsertDailyAggregate()`.
+
+> ⚠️ Same build_runner rule as `scan_record.dart`.
+
+---
+
+### `lib/core/models/app_notification_model.dart`
+
+**Fields**: `id`, `firestoreId` (indexed), `title`, `subtitle`, `time` (unused — dead field), `iconName`, `timestamp`, `isRead`, `isCleared`.
+
+**Key**: `firestoreId` is used for deduplication across devices.
+
+---
+
+### `lib/services/db_service.dart`
+
+**Key Methods**:
+| Method | Purpose |
+|--------|---------|
+| `initialize()` | Opens Isar DB, runs legacy migration |
+| `isInitialized` | `bool` — checks if Isar instance exists |
+| `saveScan()` | Saves scan, updates aggregate, syncs to cloud, auto-archives >30d |
+| `getImagePath()` | Resolves filename → absolute path using `documentsPath` |
+| `updateDailyAggregate()` | Upserts daily aggregate for a scan record |
+| `normalizeFishName()` | Strips parentheses, capitalizes |
+| `clearAll()` | Wipes all collections + deletes image files (called on sign-out) |
+
+**Database Collections**: `ScanRecord`, `RecipeCache`, `DailyScanAggregate`, `AppNotificationModel`.
+
+---
+
+### `lib/services/sync_service.dart`
+
+**Key Methods**:
+| Method | Direction | When Called |
+|--------|-----------|-------------|
+| `upsertScanRecord()` | Local → Cloud | After every scan save |
+| `upsertDailyAggregate()` | Local → Cloud | After every aggregate update |
+| `syncLocalToCloud()` | Local → Cloud | On sign-in, on network recovery |
+| `syncFromCloudToLocal()` | Cloud → Local | On sign-in, on profile load |
+| `startRealtimeSync()` | Bidirectional | After sign-in |
+| `stopRealtimeSync()` | — | On sign-out |
+| `fetchArchivedScansForDate()` | Cloud → Memory | Profile screen date tap |
+| `forceRebuildAggregatesFromCloud()` | Cloud → Local | Manual admin action |
+
+**Real-time Listeners** (active after `startRealtimeSync()`):
+1. `users/{uid}/scans` — syncs scan CRUD across devices
+2. `users/{uid}/aggregates` — syncs daily aggregates
+3. `users/{uid}` — listens for `isPremium` changes
+4. `Connectivity` stream — triggers `syncLocalToCloud()` on reconnect
+
+---
+
+### `lib/services/ai_service.dart`
+
+**Flow**:
+1. If `AppConfig.kMockMode` → return hardcoded mock data (6-cycle rotation).
+2. Check connectivity via `connectivity_plus`.
+3. If offline → return `{error: true, errorType: 'offline'}`.
+4. If online → call `_provider.analyzeFish()` with 15-second timeout.
+5. If result fish is "unknown" → return `{error: true, errorType: 'invalid_image'}`.
+
+**Cancellation**: Returns `CancelableOperation` so the UI can cancel mid-analysis.
+
+---
+
+### `lib/services/auth_service.dart`
+
+**Supported Methods**: Google, Apple, Email/Password, Phone OTP, Anonymous.
+
+**Post-Sign-In Flow** (identical for all methods):
+1. `SyncService.syncLocalToCloud()` — push guest scans
+2. `SyncService.syncFromCloudToLocal()` — pull history
+3. `SyncService.startRealtimeSync()` — attach listeners
+
+**Sign-Out Flow**:
+1. `SyncService.stopRealtimeSync()`
+2. `NotificationService().stopSync()`
+3. `GoogleSignIn().signOut()` + `FirebaseAuth.signOut()`
+4. `DBService.clearAll()` — wipes local DB + images
+5. `AppConfig.isPremiumUser = false`
+
+---
+
+### `lib/services/notification_service.dart`
+
+**Architecture**: Singleton with `ValueNotifier<List<AppNotification>>` for reactive UI.
+
+**Data Flow**:
+1. FCM `onMessage` (foreground) → save to Isar → reload → push to Firestore (cross-device)
+2. FCM `onMessageOpenedApp` (background tap) → same processing pipeline
+3. FCM `getInitialMessage()` (cold-start tap) → same processing pipeline
+4. Firestore listener → process changes → save/delete in Isar → reload
+5. Local Isar → `_loadFromLocal()` → updates ValueNotifier
+
+**FCM Topic**: App subscribes to `all_users` topic in `main.dart` for Firebase Campaign targeting.
+
+---
+
+### `lib/services/payment_service.dart`
+
+**iOS UPI**: URL scheme checks for GPay, PhonePe, Paytm, Amazon Pay, CRED, BHIM.
+**Android UPI**: Platform channel `com.anuragchak.illish/upi` → `getInstalledUpiApps`.
+**Razorpay Checkout**: `razorpay_flutter` SDK with `Completer<bool>` result handling. Logo URL from Remote Config passed as `'image'` option. On success: grants premium, syncs to Firestore, unlocks all scans.
+
+---
+
+### `lib/services/remote_config_service.dart`
+
+**All Config Keys**: `gemini_api_key`, `gemini_model`, `youtube_api_key`, `admob_banner_id_*`, `admob_interstitial_id_*`, `mock_mode`, `enable_payment`, `enable_vendor_payment`, `sync_images_to_cloud`, `price_*`, `show_single_price`, `razorpay_key_id`, `razorpay_logo_url`, `fetch_interval_seconds`.
+
+**Defaults**: Fall back to `.env` file values.
+
+---
+
+### `lib/screens/camera_screen.dart`
+
+**Key Features**: Camera preview with pinch-to-zoom, tap-to-focus, flash toggle, camera switch (double tap), gallery import via swipe-up, location tracking (geolocator + geocoding with 500m stream), profile navigation, saved items sheet, AI analysis with cancellable loading dialog.
+
+**Camera Init Contract**: `_initCamera()` fetches `availableCameras()` if the global `cameras` list is empty. Primary fetch happens in `main()`.
+
+---
+
+### `lib/screens/profile_screen.dart`
+
+**Key Sections**: Header → User info → Freshness meter → Auth actions → Stats cards → Season card → Scan history calendar (PageView, swipeable) → Selected date pill → Species breakdown.
+
+**Safety Guards**: `DBService.isInitialized` checked before Isar watcher attachment. `_loadAnalytics()` and `_fetchAndShowDailyScansDialog()` wrapped in try-catch.
+
+---
+
+### Data Flow Summary
+
+```
+Camera Scan → AIService.analyzeFish() → DBService.saveScan()
+  ├── ScanRecord → Isar (local)
+  ├── DailyScanAggregate → Isar (local)
+  ├── SyncService.upsertScanRecord() → Firestore (cloud)
+  └── SyncService.upsertDailyAggregate() → Firestore (cloud)
+
+Sign-In → AuthService → SyncService.syncLocalToCloud()
+  └── SyncService.syncFromCloudToLocal()
+      └── SyncService.startRealtimeSync()
+
+Profile View → DBService.isar queries → setState
+  └── (if empty) SyncService.syncFromCloudToLocal()
+```

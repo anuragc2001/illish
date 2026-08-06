@@ -301,3 +301,44 @@ Track vendor stall locations, freshness averages over time, and community vendor
 ### Concept
 `AppConfig.kMockMode` is currently set to `true` in `lib/config/app_config.dart`. Must be set to `false` before real testing or App Store submission.
 
+---
+
+## 26. [COMPLETED] Razorpay Payment Integration
+
+### Status: COMPLETED
+### Concept
+Replaced PhonePe SDK with Razorpay SDK for a more reliable, well-documented payment flow.
+
+### Implemented Solution
+- `razorpay_flutter` SDK with full lifecycle management (listener cleanup via `clear()`, `Completer<bool>` for async result).
+- On payment success: `AppConfig.isPremiumUser` set, `SyncService.upgradeUserToPremium()` called, `DBService.unlockAllScans()` called.
+- `razorpay_logo_url` Remote Config key passes app logo to Razorpay checkout modal.
+- Offline premium state cached in `SharedPreferences` and loaded before first frame to prevent UI flicker.
+
+---
+
+## 27. [COMPLETED] Firebase Cloud Messaging — Campaign Notifications
+
+### Status: COMPLETED
+### Concept
+Enable Firebase Console Campaigns to reach all app users, and properly handle notification taps in all app states.
+
+### Implemented Solution
+- `subscribeToTopic('all_users')` in `main.dart` for campaign targeting.
+- `onMessageOpenedApp` handler for background notification taps.
+- `getInitialMessage()` handler for cold-start notification taps.
+- All 3 FCM paths route through a shared `_handleRemoteMessage()` method for consistent processing.
+
+---
+
+## 28. [COMPLETED] Debug Print Cleanup & LLDB Restoration
+
+### Status: COMPLETED
+### Concept
+Remove unnecessary verbose debug prints (Razorpay init logs, Remote Config value dumps) while keeping essential error/success logs. Restore LLDB debugging support.
+
+### What Was Done
+- Removed 8 Razorpay verbose `debugPrint` calls and the 20-line Remote Config dump.
+- Removed orphaned `import 'dart:convert'` from `payment_service.dart`.
+- Removed `config: enable-lldb-debugging: false` from `pubspec.yaml`.
+

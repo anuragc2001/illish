@@ -1,31 +1,60 @@
-import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:phonepe_payment_sdk/phonepe_payment_sdk.dart';
+import 'dart:async';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:crypto/crypto.dart';
 import '../core/models/upi_app.dart';
 import 'db_service.dart';
+import 'sync_service.dart';
 import '../config/app_config.dart';
 import 'remote_config_service.dart';
 
 class PaymentService {
-  static const MethodChannel _channel = MethodChannel('com.anuragchak.illish/upi');
+  static const MethodChannel _channel = MethodChannel(
+    'com.anuragchak.illish/upi',
+  );
 
   static final List<UpiApp> _iosSupportedApps = [
-    UpiApp(name: 'Google Pay', packageName: 'gpay', assetIcon: 'assets/icons/upi/gpay.png'),
-    UpiApp(name: 'PhonePe', packageName: 'phonepe', assetIcon: 'assets/icons/upi/phonepe.jpeg'),
-    UpiApp(name: 'Paytm', packageName: 'paytm', assetIcon: 'assets/icons/upi/paytm.png'),
-    UpiApp(name: 'Amazon Pay', packageName: 'amazonpay', assetIcon: 'assets/icons/upi/amazonpay.png'),
-    UpiApp(name: 'CRED', packageName: 'credpay', assetIcon: 'assets/icons/upi/cred.jpeg'),
-    UpiApp(name: 'BHIM', packageName: 'bhim', assetIcon: 'assets/icons/upi/bhim.jpg'),
+    UpiApp(
+      name: 'Google Pay',
+      packageName: 'gpay',
+      assetIcon: 'assets/icons/upi/gpay.png',
+    ),
+    UpiApp(
+      name: 'PhonePe',
+      packageName: 'phonepe',
+      assetIcon: 'assets/icons/upi/phonepe.jpeg',
+    ),
+    UpiApp(
+      name: 'Paytm',
+      packageName: 'paytm',
+      assetIcon: 'assets/icons/upi/paytm.png',
+    ),
+    UpiApp(
+      name: 'Amazon Pay',
+      packageName: 'amazonpay',
+      assetIcon: 'assets/icons/upi/amazonpay.png',
+    ),
+    UpiApp(
+      name: 'CRED',
+      packageName: 'credpay',
+      assetIcon: 'assets/icons/upi/cred.jpeg',
+    ),
+    UpiApp(
+      name: 'BHIM',
+      packageName: 'bhim',
+      assetIcon: 'assets/icons/upi/bhim.jpg',
+    ),
   ];
 
   static Future<List<UpiApp>> getAvailableUpiApps() async {
     List<UpiApp> apps = [];
     if (Platform.isAndroid) {
       try {
-        final List<dynamic>? result = await _channel.invokeMethod('getInstalledUpiApps');
+        final List<dynamic>? result = await _channel.invokeMethod(
+          'getInstalledUpiApps',
+        );
         if (result != null) {
           for (var item in result) {
             apps.add(UpiApp.fromMap(Map<String, dynamic>.from(item)));
@@ -52,94 +81,107 @@ class PaymentService {
           'packageName': app.packageName,
         });
       } catch (e) {
-        print("Error launching Android UPI app: $e");
+        debugPrint("Error launching Android UPI app: $e");
       }
     } else if (Platform.isIOS) {
       final Uri appUri = Uri(scheme: app.packageName);
       try {
         if (await canLaunchUrl(appUri)) {
-          await launchUrl(appUri, mode: LaunchMode.externalApplication);
+          await launchUrl(
+            appUri,
+            mode: LaunchMode.externalNonBrowserApplication,
+          );
         } else {
-            final Uri baseUri = Uri(scheme: app.packageName);
-            if (await canLaunchUrl(baseUri)) {
-                await launchUrl(baseUri, mode: LaunchMode.externalApplication);
-            }
+          final Uri baseUri = Uri(scheme: app.packageName);
+          if (await canLaunchUrl(baseUri)) {
+            await launchUrl(
+              baseUri,
+              mode: LaunchMode.externalNonBrowserApplication,
+            );
+          }
         }
       } catch (e) {
-        print("Error launching iOS UPI app: $e");
+        debugPrint("Error launching iOS UPI app: $e");
       }
     }
   }
 
-  // PHONEPE SDK INTEGRATION
-  static const String callbackUrl = "https://webhook.site/callback-url"; // Example callback
+  // RAZORPAY SDK INTEGRATION
+  static Razorpay? _razorpay;
+  static Completer<bool>? _paymentCompleter;
+  static String _currentPlanId = '';
 
-  static Future<void> initPhonePe() async {
+  static Future<bool> startRazorpayCheckout({
+    required String planId,
+    required double amount,
+  }) async {
+    _paymentCompleter = Completer<bool>();
+    _currentPlanId = planId;
+
+    _razorpay?.clear();
+    _razorpay = Razorpay();
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+
+    final keyId = RemoteConfigService.razorpayKeyId.value.trim();
+    final logoUrl = RemoteConfigService.razorpayLogoUrl.value.trim();
+
+    var options = {
+      'key': keyId.isNotEmpty ? keyId : 'rzp_test_your_key_here',
+      'amount': (amount * 100).toInt(), // Razorpay expects amount in paise
+      'name': 'Illish Pro',
+      'description': 'AI Freshness Scanner Premium',
+      'retry': {'enabled': true, 'max_count': 1},
+      'send_sms_hash': true,
+      if (logoUrl.isNotEmpty) 'image': logoUrl,
+      'prefill': {'contact': '9876543210', 'email': 'customer@example.com'},
+      'external': {
+        'wallets': ['paytm'],
+      },
+    };
+
     try {
-      bool isInitialized = await PhonePePaymentSdk.init(
-        RemoteConfigService.phonepeEnvironment,
-        RemoteConfigService.phonepeMerchantId,
-        RemoteConfigService.phonepeAppId.isEmpty ? 'transaction_flow' : RemoteConfigService.phonepeAppId,
-        true
-      );
-      print("PhonePe SDK Init: $isInitialized");
+      _razorpay!.open(options);
     } catch (e) {
-      print("Error initializing PhonePe: $e");
+      debugPrint("Error launching Razorpay: $e");
+      if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
+        _paymentCompleter!.complete(false);
+      }
+      return false;
+    }
+
+    return _paymentCompleter!.future;
+  }
+
+  static void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    debugPrint("Razorpay Success: ${response.paymentId}");
+    // Grant Premium Access
+    AppConfig.isPremiumUser = true;
+    AppConfig.isPremiumNotifier.value = true;
+    // Update Firestore via SyncService
+    await SyncService.upgradeUserToPremium(_currentPlanId);
+    // Permanently unlock all previous scans
+    await DBService.unlockAllScans();
+
+    if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
+      _paymentCompleter!.complete(true);
     }
   }
 
-
-  static Future<bool> startPhonePeCheckout({required String planId, required double amount}) async {
-    try {
-      String transactionId = "TXN_${DateTime.now().millisecondsSinceEpoch}";
-      
-      Map<String, dynamic> requestBody = {
-        "merchantId": RemoteConfigService.phonepeMerchantId,
-        "merchantTransactionId": transactionId,
-        "merchantUserId": "USER_${DateTime.now().millisecondsSinceEpoch}",
-        "amount": (amount * 100).toInt(), // PhonePe expects amount in paise
-        "redirectUrl": callbackUrl,
-        "redirectMode": "REDIRECT",
-        "callbackUrl": callbackUrl,
-        "mobileNumber": "9999999999",
-        "paymentInstrument": {
-          "type": "PAY_PAGE"
-        }
-      };
-
-      String base64Body = base64Encode(utf8.encode(jsonEncode(requestBody)));
-      String checksum = sha256.convert(utf8.encode(base64Body + "/pg/v1/pay" + RemoteConfigService.phonepeSaltKey)).toString() + "###" + RemoteConfigService.phonepeSaltIndex;
-
-      String requestJson = jsonEncode({
-        "merchantId": RemoteConfigService.phonepeMerchantId,
-        "orderId": transactionId,
-        "token": base64Body,
-        "checksum": checksum,
-        "paymentMode": "PAY_PAGE",
-      });
-
-      var response = await PhonePePaymentSdk.startTransaction(requestJson, callbackUrl)
-          .timeout(const Duration(seconds: 60), onTimeout: () {
-        print("PhonePe transaction call timed out or was dismissed");
-        return null;
-      });
-      
-      if (response != null && response is Map) {
-        String status = (response['status'] ?? response['error'] ?? '').toString().toUpperCase();
-        print("PhonePe Checkout response status: $status, full payload: $response");
-        if (status == 'SUCCESS') {
-          // Grant Premium Access
-          AppConfig.isPremiumUser = true;
-          AppConfig.isPremiumNotifier.value = true;
-          // Permanently unlock all previous scans
-          await DBService.unlockAllScans();
-          return true;
-        }
-      }
-      return false;
-    } catch (e, stack) {
-      print("PhonePe Checkout Exception/Cancellation: $e\n$stack");
-      return false;
+  static void _handlePaymentError(PaymentFailureResponse response) {
+    debugPrint("Razorpay Error: ${response.code} - ${response.message}");
+    if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
+      _paymentCompleter!.complete(false);
     }
+  }
+
+  static void _handleExternalWallet(ExternalWalletResponse response) {
+    debugPrint("Razorpay External Wallet: ${response.walletName}");
+  }
+
+  static void dispose() {
+    _razorpay?.clear();
+    _razorpay = null;
   }
 }

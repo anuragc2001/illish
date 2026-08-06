@@ -240,7 +240,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         }
       }
 
-      final apiKey = RemoteConfigService.youtubeApiKey;
+      final apiKey = RemoteConfigService.youtubeApiKey.value;
       final url = Uri.parse(
         'https://www.googleapis.com/youtube/v3/search?part=snippet&q=$query&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount',
       );
@@ -1081,7 +1081,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                           marketAvgExplanation,
                         ),
                         const SizedBox(height: 16),
-                        if (AppConfig.kEnableUpiPayments)
+                        if (AppConfig.kEnableVendorPayment)
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
@@ -1676,7 +1676,7 @@ class _AllRecipesScreenState extends State<AllRecipesScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final apiKey = RemoteConfigService.youtubeApiKey;
+      final apiKey = RemoteConfigService.youtubeApiKey.value;
       var urlStr =
           'https://www.googleapis.com/youtube/v3/search?part=snippet&q=${widget.query}&type=video&key=$apiKey&maxResults=10&videoDuration=medium&order=viewCount';
       if (_pageToken != null) urlStr += '&pageToken=$_pageToken';

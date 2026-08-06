@@ -133,6 +133,14 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initCamera() async {
+    if (cameras.isEmpty) {
+      try {
+        cameras = await availableCameras();
+      } catch (e) {
+        debugPrint('Error getting cameras: $e');
+      }
+    }
+
     if (cameras.isNotEmpty) {
       _controller = CameraController(
         cameras[_cameraIndex],

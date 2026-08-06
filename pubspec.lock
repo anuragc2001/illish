@@ -290,7 +290,7 @@ packages:
     source: hosted
     version: "0.3.5+4"
   crypto:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: crypto
       sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
@@ -353,6 +353,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
+  eventify:
+    dependency: transitive
+    description:
+      name: eventify
+      sha256: b829429f08586cc2001c628e7499e3e3c2493a1d895fd73b00ecb23351aa5a66
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   fake_async:
     dependency: transitive
     description:
@@ -1248,14 +1256,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
-  phonepe_payment_sdk:
-    dependency: "direct main"
-    description:
-      name: phonepe_payment_sdk
-      sha256: "5381365fb5a4acac8ed6980201c6ff0d354352089f17d9cc521dadd85eee930f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.2"
   platform:
     dependency: transitive
     description:
@@ -1328,6 +1328,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+  razorpay_flutter:
+    dependency: "direct main"
+    description:
+      name: razorpay_flutter
+      sha256: a9026acf004df802128be6996a9397f5e9c20f32dd12ab215fd1659e0233c9f0
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.5"
   record_use:
     dependency: transitive
     description:
