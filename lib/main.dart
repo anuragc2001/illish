@@ -151,6 +151,12 @@ Future<void> _initSecondaryServices() async {
   }
 
   try {
+    await PaymentService.initRevenueCat();
+  } catch (e) {
+    debugPrint("RevenueCat initialization error: $e");
+  }
+
+  try {
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(
       alert: true,

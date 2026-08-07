@@ -135,6 +135,11 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initCamera() async {
+    if (_controller != null) {
+      await _controller!.dispose();
+      _controller = null;
+    }
+
     if (cameras.isEmpty) {
       try {
         cameras = await availableCameras();
@@ -149,6 +154,10 @@ class _CameraScreenState extends State<CameraScreen>
         ResolutionPreset.high,
         enableAudio: false,
       );
+      
+      // Trigger a rebuild so the UI shows the loading spinner while the camera initializes
+      if (mounted) setState(() {});
+      
       try {
         await _controller!.initialize();
         await _controller!.setFocusMode(FocusMode.auto);
@@ -519,6 +528,8 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
+  bool _isRouteActive = true;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -526,34 +537,36 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   @override
+  void didPushNext() {
+    // Navigating to a new screen (e.g., Payment or Profile). Dispose camera to release hardware.
+    _isRouteActive = false;
+    _controller?.dispose();
+    _controller = null;
+  }
+
+  @override
   void didPopNext() {
-    // Called when the top route has been popped off, and the current route shows up.
-    if (_controller != null && _controller!.value.isInitialized) {
-      _controller?.resumePreview();
-      if (mounted) setState(() {});
-    } else {
-      // Force re-initialize if the camera was lost or crashed
-      _initCamera();
-    }
+    // Coming back from a pushed screen. Re-initialize the camera.
+    _isRouteActive = true;
+    _initCamera();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      _controller?.pausePreview();
+    if (state == AppLifecycleState.detached) {
+      // Free up hardware resources only when completely detached
+      _controller?.dispose();
+      _controller = null;
     } else if (state == AppLifecycleState.resumed) {
-      if (_controller != null && _controller!.value.isInitialized) {
-        _controller?.resumePreview();
-      } else {
-        // Force re-initialize if the camera was lost or crashed
-        _initCamera();
-      }
-
-      // Fetch location when app is brought back to foreground
-      if (mounted) {
-        _initLocation();
-        setState(() {}); // refresh the camera preview
+      // Re-initialize completely ONLY if this screen is currently visible and controller is dead
+      if (_isRouteActive) {
+        if (_controller == null || !_controller!.value.isInitialized) {
+          _initCamera();
+        }
+        if (mounted) {
+          _initLocation();
+          setState(() {}); // refresh the camera preview
+        }
       }
     }
   }
@@ -645,6 +658,12 @@ class _CameraScreenState extends State<CameraScreen>
                             : Container(
                                 key: const ValueKey('empty'),
                                 color: Colors.black,
+                                child: const Center(
+                                  child: CupertinoActivityIndicator(
+                                    color: Colors.white54,
+                                    radius: 16,
+                                  ),
+                                ),
                               ),
                       ),
                     ),

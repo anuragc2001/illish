@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 import 'results_screen.dart';
 import '../services/admob_service.dart';
+import '../services/remote_config_service.dart';
+import '../services/payment_service.dart';
+import '../widgets/ucb_payment_selector.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -74,27 +78,93 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           child: CircularProgressIndicator(color: AppTheme.neonCyan)),
     );
 
-    // Bypass payment logic as requested
-    await Future.delayed(const Duration(seconds: 1));
+    // Parse price
+    String displayPrice = '';
+    double amount = 0;
+    if (RemoteConfigService.showSinglePrice.value) {
+      displayPrice = RemoteConfigService.priceWeekly.value;
+    } else {
+      if (_selectedPlan == 'weekly') {
+        displayPrice = RemoteConfigService.priceWeekly.value;
+      } else if (_selectedPlan == 'monthly') {
+        displayPrice = RemoteConfigService.priceMonthly.value;
+      } else {
+        displayPrice = RemoteConfigService.priceAnnual.value;
+      }
+    }
+    
+    amount = double.tryParse(displayPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 29.0;
+
+    // Pop the loading dialog BEFORE showing the bottom sheet
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
 
     if (context.mounted) {
-      Navigator.pop(context); // pop dialog
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              ResultsScreen(aiData: widget.aiData),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeOutCubic;
-            var tween = Tween(begin: begin, end: end)
-                .chain(CurveTween(curve: curve));
-            return SlideTransition(
-                position: animation.drive(tween), child: child);
+      if (Platform.isIOS) {
+        // iOS requires direct App Store billing for digital goods. Side-by-side alternative billing is generally prohibited.
+        bool success = await PaymentService.startAppleAppStoreCheckout(
+          planId: _selectedPlan,
+          amount: amount,
+        );
+        if (context.mounted && success) {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  ResultsScreen(aiData: widget.aiData),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.easeOutCubic;
+                var tween = Tween(begin: begin, end: end)
+                    .chain(CurveTween(curve: curve));
+                return SlideTransition(
+                    position: animation.drive(tween), child: child);
+              },
+            ),
+          );
+        } else if (context.mounted && !success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Payment failed or cancelled")),
+          );
+        }
+      } else if (Platform.isAndroid) {
+        // Show User Choice Billing Selector
+        UcbPaymentSelector.show(
+          context,
+          planId: _selectedPlan,
+          amount: amount,
+          displayPrice: displayPrice,
+          onPaymentSuccess: () {
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      ResultsScreen(aiData: widget.aiData),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    const begin = Offset(0.0, 1.0);
+                    const end = Offset.zero;
+                    const curve = Curves.easeOutCubic;
+                    var tween = Tween(begin: begin, end: end)
+                        .chain(CurveTween(curve: curve));
+                    return SlideTransition(
+                        position: animation.drive(tween), child: child);
+                  },
+                ),
+              );
+            }
           },
-        ),
-      );
+          onPaymentError: () {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Payment failed or cancelled")),
+              );
+            }
+          },
+        );
+      }
     }
   }
 

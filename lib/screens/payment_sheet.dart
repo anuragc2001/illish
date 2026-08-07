@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +11,7 @@ import '../services/payment_service.dart';
 import '../services/auth_service.dart';
 import 'profile_screen.dart';
 import '../config/app_config.dart';
+import '../widgets/ucb_payment_selector.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> aiData;
@@ -101,70 +103,56 @@ class _PaymentScreenState extends State<PaymentScreen>
       ),
     );
 
-    bool success = false;
-    try {
-      double amount = 0;
-      if (RemoteConfigService.showSinglePrice.value) {
-        amount =
-            double.tryParse(
-              RemoteConfigService.priceWeekly.value.replaceAll(
-                RegExp(r'[^0-9.]'),
-                '',
-              ),
-            ) ??
-            29.0;
+    // Parse price
+    String displayPrice = '';
+    double amount = 0;
+    if (RemoteConfigService.showSinglePrice.value) {
+      displayPrice = RemoteConfigService.priceWeekly.value;
+    } else {
+      if (_selectedPlan == 'weekly') {
+        displayPrice = RemoteConfigService.priceWeekly.value;
+      } else if (_selectedPlan == 'monthly') {
+        displayPrice = RemoteConfigService.priceMonthly.value;
       } else {
-        if (_selectedPlan == 'weekly') {
-          amount =
-              double.tryParse(
-                RemoteConfigService.priceWeekly.value.replaceAll(
-                  RegExp(r'[^0-9.]'),
-                  '',
-                ),
-              ) ??
-              29.0;
-        } else if (_selectedPlan == 'monthly') {
-          amount =
-              double.tryParse(
-                RemoteConfigService.priceMonthly.value.replaceAll(
-                  RegExp(r'[^0-9.]'),
-                  '',
-                ),
-              ) ??
-              99.0;
-        } else {
-          amount =
-              double.tryParse(
-                RemoteConfigService.priceAnnual.value.replaceAll(
-                  RegExp(r'[^0-9.]'),
-                  '',
-                ),
-              ) ??
-              499.0;
-        }
+        displayPrice = RemoteConfigService.priceAnnual.value;
       }
+    }
+    
+    amount = double.tryParse(displayPrice.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 29.0;
 
-      success = await PaymentService.startRazorpayCheckout(
-        planId: _selectedPlan,
-        amount: amount,
-      );
-    } catch (e) {
-      print("Error in _launchUPI: $e");
-      success = false;
-    } finally {
-      if (context.mounted) {
-        Navigator.of(
-          context,
-          rootNavigator: true,
-        ).pop(); // guaranteed to pop loading dialog
-      }
+    // Pop the loading dialog BEFORE showing the bottom sheet
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
 
     if (context.mounted) {
-      if (success) {
-        _showGlassOverlay(true);
-      } else {
-        _showGlassOverlay(false);
+      if (Platform.isIOS) {
+        // iOS requires direct App Store billing for digital goods. Side-by-side alternative billing is generally prohibited.
+        bool success = await PaymentService.startAppleAppStoreCheckout(
+          planId: _selectedPlan,
+          amount: amount,
+        );
+        if (context.mounted) {
+          _showGlassOverlay(success);
+        }
+      } else if (Platform.isAndroid) {
+        // Show User Choice Billing Selector
+        UcbPaymentSelector.show(
+          context,
+          planId: _selectedPlan,
+          amount: amount,
+          displayPrice: displayPrice,
+          onPaymentSuccess: () {
+            if (context.mounted) {
+              _showGlassOverlay(true);
+            }
+          },
+          onPaymentError: () {
+            if (context.mounted) {
+              _showGlassOverlay(false);
+            }
+          },
+        );
       }
     }
   }
