@@ -1,4 +1,3 @@
-import 'dart:developer' as dev;
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -392,12 +391,10 @@ class DBService {
     final dateKey = DateTime(localTime.year, localTime.month, localTime.day);
     
     DailyScanAggregate? aggregate = await isar.dailyScanAggregates.filter().dateEqualTo(dateKey).findFirst();
-    if (aggregate == null) {
-      aggregate = DailyScanAggregate()
+    aggregate ??= DailyScanAggregate()
         ..date = dateKey
         ..totalScans = 0
         ..fishCounts = [];
-    }
 
     aggregate.totalScans += 1;
 

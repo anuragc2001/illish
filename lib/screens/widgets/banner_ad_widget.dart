@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../config/app_config.dart';
-import '../../core/theme.dart';
 import '../../services/admob_service.dart';
 
 class BannerAdWidget extends StatefulWidget {
@@ -63,13 +62,13 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
         }
 
         if (!_isLoaded || _bannerAd == null) {
-          return Container(
+          return SizedBox(
             width: widget.size.width.toDouble(),
             height: widget.size.height.toDouble(),
           ); // Keep space while loading to prevent UI jump
         }
 
-        return Container(
+        return SizedBox(
           width: widget.size.width.toDouble(),
           height: widget.size.height.toDouble(),
           child: _adWidget,

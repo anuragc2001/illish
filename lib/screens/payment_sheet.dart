@@ -162,7 +162,7 @@ class _PaymentScreenState extends State<PaymentScreen>
       context: context,
       barrierDismissible: isSuccess ? false : true,
       barrierLabel: '',
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (dialogContext, anim1, anim2) {
         return Material(
@@ -188,19 +188,19 @@ class _PaymentScreenState extends State<PaymentScreen>
                     margin: const EdgeInsets.symmetric(horizontal: 24),
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF151921).withOpacity(0.8),
+                      color: const Color(0xFF151921).withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
                         color: isSuccess
-                            ? AppTheme.neonCyan.withOpacity(0.5)
-                            : Colors.redAccent.withOpacity(0.5),
+                            ? AppTheme.neonCyan.withValues(alpha: 0.5)
+                            : Colors.redAccent.withValues(alpha: 0.5),
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: isSuccess
-                              ? AppTheme.neonCyan.withOpacity(0.2)
-                              : Colors.redAccent.withOpacity(0.2),
+                              ? AppTheme.neonCyan.withValues(alpha: 0.2)
+                              : Colors.redAccent.withValues(alpha: 0.2),
                           blurRadius: 40,
                           spreadRadius: 10,
                         ),
@@ -242,7 +242,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                               : "The transaction was not completed. Your account was not charged.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 15,
                             height: 1.4,
                           ),
@@ -362,8 +362,8 @@ class _PaymentScreenState extends State<PaymentScreen>
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppTheme.neonCyan.withOpacity(
-                                          0.15,
+                                        color: AppTheme.neonCyan.withValues(
+                                          alpha: 0.15,
                                         ),
                                         blurRadius: 30,
                                         spreadRadius: 10,
@@ -624,7 +624,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                                   borderRadius: BorderRadius.circular(100),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppTheme.neonCyan.withOpacity(0.4),
+                                      color: AppTheme.neonCyan.withValues(alpha: 0.4),
                                       blurRadius: 20,
                                       spreadRadius: 2,
                                       offset: const Offset(0, 4),
@@ -740,7 +740,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.neonCyan.withOpacity(0.1)
+              ? AppTheme.neonCyan.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
@@ -837,7 +837,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white12),
             ),

@@ -39,14 +39,16 @@ class GeminiProvider implements AIProvider {
     final dayStr = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][now.weekday - 1];
     
     String timeOfDay;
-    if (now.hour >= 4 && now.hour < 11) timeOfDay = "Morning";
-    else if (now.hour >= 11 && now.hour < 16) timeOfDay = "Afternoon";
+    if (now.hour >= 4 && now.hour < 11) {
+      timeOfDay = "Morning";
+    } else if (now.hour >= 11 && now.hour < 16) timeOfDay = "Afternoon";
     else if (now.hour >= 16 && now.hour < 21) timeOfDay = "Evening";
     else timeOfDay = "Night";
     
     String season;
-    if (now.month == 12 || now.month <= 2) season = "Winter";
-    else if (now.month >= 3 && now.month <= 5) season = "Summer";
+    if (now.month == 12 || now.month <= 2) {
+      season = "Winter";
+    } else if (now.month >= 3 && now.month <= 5) season = "Summer";
     else if (now.month >= 6 && now.month <= 9) season = "Monsoon";
     else season = "Autumn";
 

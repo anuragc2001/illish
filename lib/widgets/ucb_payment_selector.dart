@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../core/theme.dart';
 import '../services/payment_service.dart';
 
 class UcbPaymentSelector extends StatelessWidget {
@@ -85,10 +84,10 @@ class UcbPaymentSelector extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF151921),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 40,
             spreadRadius: 10,
           ),
@@ -105,7 +104,7 @@ class UcbPaymentSelector extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 24),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -125,7 +124,7 @@ class UcbPaymentSelector extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 32),
@@ -162,7 +161,7 @@ class UcbPaymentSelector extends StatelessWidget {
               child: Text(
                 'Cancel',
                 style: GoogleFonts.inter(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),
@@ -190,7 +189,7 @@ class UcbPaymentSelector extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           decoration: BoxDecoration(
             border: Border.all(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -198,8 +197,8 @@ class UcbPaymentSelector extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.05),
-                Colors.white.withOpacity(0.01),
+                Colors.white.withValues(alpha: 0.05),
+                Colors.white.withValues(alpha: 0.01),
               ],
             ),
           ),
@@ -213,7 +212,7 @@ class UcbPaymentSelector extends StatelessWidget {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 10,
                       spreadRadius: 2,
                     ),
@@ -245,7 +244,7 @@ class UcbPaymentSelector extends StatelessWidget {
                       subtitle,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         height: 1.2,
                       ),
                     ),
@@ -255,7 +254,7 @@ class UcbPaymentSelector extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

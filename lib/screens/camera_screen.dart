@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:gal/gal.dart' as gal;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../main.dart';
@@ -23,7 +22,7 @@ import 'results_screen.dart';
 import 'profile_screen.dart';
 import '../core/models/scan_record.dart';
 
-import '../main.dart'; // For routeObserver
+// For routeObserver
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -111,8 +110,9 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _saveLocationHistory(String newLoc) async {
-    if (newLoc.isEmpty || newLoc.contains('denied') || newLoc == 'Locating...')
+    if (newLoc.isEmpty || newLoc.contains('denied') || newLoc == 'Locating...') {
       return;
+    }
     final prefs = await SharedPreferences.getInstance();
     List<String> history = prefs.getStringList('location_history') ?? [];
     history.remove(newLoc);
@@ -248,9 +248,7 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     // Start background distance tracking only after permissions are confirmed
-    if (_positionStreamSubscription == null) {
-      _positionStreamSubscription =
-          Geolocator.getPositionStream(
+    _positionStreamSubscription ??= Geolocator.getPositionStream(
             locationSettings: const LocationSettings(
               accuracy: LocationAccuracy.medium,
               distanceFilter: 500, // 500 meters travel distance
@@ -265,7 +263,6 @@ class _CameraScreenState extends State<CameraScreen>
               debugPrint('Location stream error: $e');
             },
           );
-    }
   }
 
   Future<void> _updateLocationFromPosition(Position position) async {
@@ -393,7 +390,7 @@ class _CameraScreenState extends State<CameraScreen>
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.3),
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         return FadeTransition(
@@ -409,10 +406,10 @@ class _CameraScreenState extends State<CameraScreen>
                     width: 280,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         width: 1.5,
                       ),
                     ),
@@ -436,7 +433,7 @@ class _CameraScreenState extends State<CameraScreen>
                             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(100),
                               ),
                               child: CupertinoButton(
@@ -496,12 +493,6 @@ class _CameraScreenState extends State<CameraScreen>
         savedId = await DBService.saveScan(result, isBookmark: false);
         result['id'] = savedId;
       }
-      final eName = result['englishName']?.toString().toLowerCase() ?? '';
-      final isUnknown =
-          eName == 'unknown' ||
-          eName == 'unknown fish' ||
-          result['error'] == true;
-
       setState(() => _isUIHidden = true);
       await showModalBottomSheet(
         context: context,
@@ -622,8 +613,9 @@ class _CameraScreenState extends State<CameraScreen>
                       onDoubleTap: _switchCamera,
                       onTapDown: (details) async {
                         if (_controller == null ||
-                            !_controller!.value.isInitialized)
+                            !_controller!.value.isInitialized) {
                           return;
+                        }
                         final double x = details.localPosition.dx / size.width;
                         final double y =
                             details.localPosition.dy /
@@ -921,7 +913,7 @@ class _CameraScreenState extends State<CameraScreen>
                                           vertical: 8,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.5),
+                                          color: Colors.black.withValues(alpha: 0.5),
                                           borderRadius: BorderRadius.circular(
                                             100,
                                           ),
@@ -976,7 +968,7 @@ class _CameraScreenState extends State<CameraScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
+                                  color: Colors.black.withValues(alpha: 0.5),
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.white24,
@@ -1006,7 +998,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   child: Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
+                                      color: Colors.black.withValues(alpha: 0.5),
                                       shape: BoxShape.circle,
                                       border: Border.all(
                                         color: Colors.white24,
@@ -1132,7 +1124,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppTheme.neonCyan
-                                      : Colors.black.withOpacity(0.5),
+                                      : Colors.black.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(100),
                                   border: Border.all(
                                     color: isSelected
@@ -1166,7 +1158,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withValues(alpha: 0.5),
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: Colors.white24,
@@ -1188,18 +1180,18 @@ class _CameraScreenState extends State<CameraScreen>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: AppTheme.neonCyan.withOpacity(0.5),
+                                      color: AppTheme.neonCyan.withValues(alpha: 0.5),
                                       width: 3,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.white.withOpacity(0.4),
+                                        color: Colors.white.withValues(alpha: 0.4),
                                         blurRadius: 4,
                                         spreadRadius: 0,
                                       ),
                                       BoxShadow(
-                                        color: AppTheme.neonCyan.withOpacity(
-                                          0.3,
+                                        color: AppTheme.neonCyan.withValues(
+                                          alpha: 0.3,
                                         ),
                                         blurRadius: 8,
                                         spreadRadius: 1,
@@ -1219,7 +1211,7 @@ class _CameraScreenState extends State<CameraScreen>
                                         boxShadow: [
                                           BoxShadow(
                                             color: AppTheme.neonCyan
-                                                .withOpacity(0.5),
+                                                .withValues(alpha: 0.5),
                                             blurRadius: 12,
                                             spreadRadius: 2,
                                           ),
@@ -1228,7 +1220,7 @@ class _CameraScreenState extends State<CameraScreen>
                                       child: Container(
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: Colors.white.withOpacity(0.6),
+                                          color: Colors.white.withValues(alpha: 0.6),
                                         ),
                                       ),
                                     ),
@@ -1240,7 +1232,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withValues(alpha: 0.5),
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: Colors.white24,
@@ -1355,7 +1347,7 @@ class _HUDThumbnailState extends State<_HUDThumbnail>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: AppTheme.neonCyan.withOpacity(0.1 + 0.3 * _anim.value),
+                color: AppTheme.neonCyan.withValues(alpha: 0.1 + 0.3 * _anim.value),
                 blurRadius: 10 + 20 * _anim.value,
                 spreadRadius: 2 + 5 * _anim.value,
               ),
@@ -1604,7 +1596,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                           background: Container(
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 20),
-                            color: Colors.redAccent.withOpacity(0.2),
+                            color: Colors.redAccent.withValues(alpha: 0.2),
                             child: const Icon(
                               Icons.delete_outline,
                               color: Colors.redAccent,
@@ -1641,7 +1633,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                       errorBuilder: (_, __, ___) => Container(
                                         width: 50,
                                         height: 50,
-                                        color: Colors.white.withOpacity(0.05),
+                                        color: Colors.white.withValues(alpha: 0.05),
                                         child: const Icon(Icons.broken_image, color: Colors.white54),
                                       ),
                                     );
@@ -1649,7 +1641,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                     imageWidget = Container(
                                       width: 50,
                                       height: 50,
-                                      color: Colors.white.withOpacity(0.05),
+                                      color: Colors.white.withValues(alpha: 0.05),
                                       child: const Icon(Icons.broken_image, color: Colors.white54),
                                     );
                                   }
@@ -1673,7 +1665,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
                                           child: Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.8),
+                                              color: Colors.black.withValues(alpha: 0.8),
                                               shape: BoxShape.circle,
                                               border: Border.all(color: Colors.white24, width: 1),
                                             ),
@@ -1770,7 +1762,7 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
-              ? AppTheme.neonCyan.withOpacity(0.15)
+              ? AppTheme.neonCyan.withValues(alpha: 0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
           border: Border.all(

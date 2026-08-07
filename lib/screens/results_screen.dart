@@ -29,7 +29,6 @@ class _ResultsScreenState extends State<ResultsScreen>
     with TickerProviderStateMixin {
   late AnimationController _animController;
   late AnimationController _shimmerController;
-  late Animation<double> _scaleAnimation;
   late Animation<double> _progressAnimation;
   late Animation<double> _shimmerAnimation;
   List<Map<String, String>> _videos = [];
@@ -45,10 +44,6 @@ class _ResultsScreenState extends State<ResultsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 3500),
     );
-    _scaleAnimation = Tween<double>(
-      begin: 0.9,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _progressAnimation = CurvedAnimation(
       parent: _animController,
       curve: Curves.easeOutBack,
@@ -99,12 +94,12 @@ class _ResultsScreenState extends State<ResultsScreen>
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF161B22).withOpacity(0.85),
+              color: const Color(0xFF161B22).withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.neonCyan.withOpacity(0.3)),
+              border: Border.all(color: AppTheme.neonCyan.withValues(alpha: 0.3)),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.neonCyan.withOpacity(0.1),
+                  color: AppTheme.neonCyan.withValues(alpha: 0.1),
                   blurRadius: 20,
                   spreadRadius: -5,
                 ),
@@ -116,7 +111,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.neonCyan.withOpacity(0.1),
+                    color: AppTheme.neonCyan.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.cloud_sync, color: AppTheme.neonCyan, size: 36),
@@ -365,8 +360,6 @@ class _ResultsScreenState extends State<ResultsScreen>
     }
     final int scoreInt = (score * 100).toInt();
 
-    final String freshnessStatus =
-        widget.aiData['freshnessStatus']?.toString() ?? 'Unknown';
     final String evidence =
         widget.aiData['freshnessEvidence']?.toString() ?? '';
     final List<String> bestCuts = List<String>.from(
@@ -393,9 +386,9 @@ class _ResultsScreenState extends State<ResultsScreen>
 
     // Status word classification
     String statusWord = 'Unknown';
-    if (scoreInt >= 85)
+    if (scoreInt >= 85) {
       statusWord = 'Excellent';
-    else if (scoreInt >= 65)
+    } else if (scoreInt >= 65)
       statusWord = 'Good';
     else if (scoreInt >= 40)
       statusWord = 'Fair';
@@ -441,9 +434,9 @@ class _ResultsScreenState extends State<ResultsScreen>
         'Dec',
       ];
       String suffix = 'th';
-      if (scanTime.day % 10 == 1 && scanTime.day != 11)
+      if (scanTime.day % 10 == 1 && scanTime.day != 11) {
         suffix = 'st';
-      else if (scanTime.day % 10 == 2 && scanTime.day != 12)
+      } else if (scanTime.day % 10 == 2 && scanTime.day != 12)
         suffix = 'nd';
       else if (scanTime.day % 10 == 3 && scanTime.day != 13)
         suffix = 'rd';
@@ -480,7 +473,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: Colors.white10),
                   ),
@@ -493,7 +486,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                             ? Icons.wifi_off_rounded
                             : Icons
                                   .signal_cellular_connected_no_internet_0_bar_rounded,
-                        color: Colors.redAccent.withOpacity(0.8),
+                        color: Colors.redAccent.withValues(alpha: 0.8),
                         size: 64,
                       ),
                       const SizedBox(height: 24),
@@ -533,7 +526,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                             borderRadius: BorderRadius.circular(100),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.neonCyan.withOpacity(0.3),
+                                color: AppTheme.neonCyan.withValues(alpha: 0.3),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -575,7 +568,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                         children: [
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: Colors.white24,
@@ -636,7 +629,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                           ),
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: Colors.white24,
@@ -650,7 +643,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                   context: context,
                                   barrierDismissible: true,
                                   barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-                                  barrierColor: Colors.black.withOpacity(0.5),
+                                  barrierColor: Colors.black.withValues(alpha: 0.5),
                                   transitionDuration: const Duration(milliseconds: 300),
                                   pageBuilder: (context, animation, secondaryAnimation) {
                                     return ShareCardPreview(aiData: widget.aiData);
@@ -847,8 +840,8 @@ class _ResultsScreenState extends State<ResultsScreen>
                                             shape: BoxShape.circle,
                                             boxShadow: [
                                               BoxShadow(
-                                                color: ringColor.withOpacity(
-                                                  _shimmerAnimation.value,
+                                                color: ringColor.withValues(
+                                                  alpha: _shimmerAnimation.value,
                                                 ),
                                                 blurRadius: 4,
                                                 spreadRadius: 1,
@@ -1091,7 +1084,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.neonCyan.withOpacity(0.35),
+                                    color: AppTheme.neonCyan.withValues(alpha: 0.35),
                                     blurRadius: 10,
                                     spreadRadius: 1,
                                     offset: const Offset(0, 0), // Centered glow
@@ -1175,7 +1168,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                                   key: const ValueKey('error'),
                                   child: Text(
                                     _videoError!,
-                                    style: TextStyle(color: Colors.white54),
+                                    style: const TextStyle(color: Colors.white54),
                                   ),
                                 )
                               : ListView.builder(
@@ -1509,7 +1502,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                               ),
                             ),
                           )
-                          .toList(),
+                          ,
                       const SizedBox(height: 8),
                     ],
                   )
@@ -1539,7 +1532,7 @@ class _ResultsScreenState extends State<ResultsScreen>
               height: 100,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               clipBehavior: Clip.hardEdge,

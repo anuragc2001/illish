@@ -8,10 +8,10 @@ class FreshnessMeter extends StatefulWidget {
   final int maxScore;
 
   const FreshnessMeter({
-    Key? key,
+    super.key,
     required this.score,
     this.maxScore = 100,
-  }) : super(key: key);
+  });
 
   @override
   State<FreshnessMeter> createState() => _FreshnessMeterState();
@@ -59,9 +59,9 @@ class _FreshnessMeterState extends State<FreshnessMeter> with SingleTickerProvid
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -232,7 +232,7 @@ class _MeterPainter extends CustomPainter {
 
     // Background track arc
     final trackPaint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = Colors.white.withValues(alpha: 0.1)
       ..strokeWidth = 14
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -278,7 +278,7 @@ class _MeterPainter extends CustomPainter {
       
       // Glow effect for dot
       final glowPaint = Paint()
-        ..color = Colors.tealAccent.withOpacity(0.4)
+        ..color = Colors.tealAccent.withValues(alpha: 0.4)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       canvas.drawCircle(dotCenter, 12, glowPaint);
     }

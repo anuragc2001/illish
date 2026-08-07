@@ -257,7 +257,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.neonCyan.withOpacity(0.15),
+                                    color: AppTheme.neonCyan.withValues(alpha: 0.15),
                                     blurRadius: 30,
                                     spreadRadius: 10,
                                   )
@@ -344,7 +344,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                                 borderRadius: BorderRadius.circular(100),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.neonCyan.withOpacity(0.4),
+                                    color: AppTheme.neonCyan.withValues(alpha: 0.4),
                                     blurRadius: 20,
                                     spreadRadius: 2,
                                     offset: const Offset(0, 4),
@@ -413,7 +413,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white12),
             ),

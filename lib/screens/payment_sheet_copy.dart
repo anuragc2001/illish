@@ -23,7 +23,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
   late Animation<double> _pulseAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  String _selectedPlan = 'monthly';
+  final String _selectedPlan = 'monthly';
 
   @override
   void initState() {
@@ -240,7 +240,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.neonCyan.withOpacity(0.15),
+                            color: AppTheme.neonCyan.withValues(alpha: 0.15),
                             blurRadius: 30,
                             spreadRadius: 10,
                           )
@@ -334,7 +334,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                         borderRadius: BorderRadius.circular(100),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.neonCyan.withOpacity(0.4),
+                            color: AppTheme.neonCyan.withValues(alpha: 0.4),
                             blurRadius: 20,
                             spreadRadius: 2,
                             offset: const Offset(0, 4),
@@ -391,103 +391,6 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildPlanCard(String id, String title, String price, String subtitle, {bool bestValue = false}) {
-    final isSelected = _selectedPlan == id;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedPlan = id;
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.neonCyan.withOpacity(0.1) : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppTheme.neonCyan : Colors.white12,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            // Check box
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? AppTheme.neonCyan : Colors.transparent,
-                border: Border.all(
-                  color: isSelected ? AppTheme.neonCyan : Colors.white38,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 14, color: Colors.black)
-                  : null,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (bestValue) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.neonCyan,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            "BEST VALUE",
-                            style: GoogleFonts.inter(
-                              color: Colors.black,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ]
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              price,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildFeatureRow(IconData icon, String title, String subtitle) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -496,7 +399,7 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white12),
             ),

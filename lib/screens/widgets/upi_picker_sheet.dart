@@ -13,7 +13,7 @@ class UpiPickerSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useSafeArea: false,
-      barrierColor: Colors.black.withOpacity(0.85), // Very dark barrier completely hides the distracting ad
+      barrierColor: Colors.black.withValues(alpha: 0.85), // Very dark barrier completely hides the distracting ad
       builder: (context) => const UpiPickerSheet(),
     );
   }
@@ -77,9 +77,9 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
             bottom: MediaQuery.paddingOf(context).bottom + 16,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E).withOpacity(0.85),
+            color: const Color(0xFF1C1C1E).withValues(alpha: 0.85),
             border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.1)),
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
           ),
           child: Column(
@@ -89,7 +89,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -133,7 +133,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 40, color: Colors.white.withOpacity(0.5)),
+            Icon(Icons.account_balance_wallet_outlined, size: 40, color: Colors.white.withValues(alpha: 0.5)),
             const SizedBox(height: 10),
             Text(
               'No supported UPI app found.\nInstall PhonePe, Google Pay, CRED, BHIM, or Paytm to continue.',
@@ -176,7 +176,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                       duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+                        color: isSelected ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -193,7 +193,7 @@ class _UpiPickerSheetState extends State<UpiPickerSheet> {
                                   borderRadius: BorderRadius.circular(14),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
+                                      color: Colors.black.withValues(alpha: 0.2),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     )

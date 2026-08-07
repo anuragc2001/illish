@@ -5,7 +5,6 @@ import '../core/theme.dart';
 import 'results_screen.dart';
 import 'payment_sheet.dart';
 import '../config/app_config.dart';
-import '../config/app_config.dart';
 import 'widgets/banner_ad_widget.dart';
 import '../services/admob_service.dart';
 import '../services/db_service.dart';
@@ -115,12 +114,12 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withOpacity(0.95), // Deep black at top
-                        Colors.black.withOpacity(0.6),
+                        Colors.black.withValues(alpha: 0.95), // Deep black at top
+                        Colors.black.withValues(alpha: 0.6),
                         Colors.transparent, // Frosted but clear in the middle
                         Colors.transparent,
-                        Colors.black.withOpacity(0.6),
-                        Colors.black.withOpacity(0.95), // Deep black at bottom
+                        Colors.black.withValues(alpha: 0.6),
+                        Colors.black.withValues(alpha: 0.95), // Deep black at bottom
                       ],
                       stops: const [0.0, 0.2, 0.45, 0.55, 0.8, 1.0],
                     ),
@@ -139,7 +138,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                           ? Icons.image_not_supported 
                           : (widget.aiData['errorType'] == 'offline' ? Icons.wifi_off : Icons.error_outline)) 
                       : Icons.blur_on, 
-                  color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.8) : AppTheme.neonCyan.withOpacity(0.8), 
+                  color: widget.aiData['error'] == true ? Colors.redAccent.withValues(alpha: 0.8) : AppTheme.neonCyan.withValues(alpha: 0.8), 
                   size: 28
                 ),
                 const SizedBox(height: 4),
@@ -180,9 +179,9 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.1) : AppTheme.neonCyan.withOpacity(0.1),
+                    color: widget.aiData['error'] == true ? Colors.redAccent.withValues(alpha: 0.1) : AppTheme.neonCyan.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: widget.aiData['error'] == true ? Colors.redAccent.withOpacity(0.3) : AppTheme.neonCyan.withOpacity(0.3)),
+                    border: Border.all(color: widget.aiData['error'] == true ? Colors.redAccent.withValues(alpha: 0.3) : AppTheme.neonCyan.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -230,9 +229,9 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 40),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -274,14 +273,14 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.greenAccent.withOpacity(0.15),
+                                      color: Colors.greenAccent.withValues(alpha: 0.15),
                                       border: Border.all(
-                                        color: Colors.greenAccent.withOpacity(0.4 + 0.6 * _animController.value),
+                                        color: Colors.greenAccent.withValues(alpha: 0.4 + 0.6 * _animController.value),
                                         width: 1.5
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.greenAccent.withOpacity(0.3 * _animController.value),
+                                          color: Colors.greenAccent.withValues(alpha: 0.3 * _animController.value),
                                           blurRadius: 8,
                                           spreadRadius: 2,
                                         ),
@@ -347,7 +346,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
               left: 24,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white24, width: 1),
                 ),

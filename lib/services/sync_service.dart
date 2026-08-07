@@ -307,7 +307,6 @@ class SyncService {
     try {
       final snapshot = await _firestore.collection('users').doc(_uid).collection('scans').get();
       
-      int savedCount = 0;
       for (var doc in snapshot.docs) {
         try {
           final data = doc.data();
@@ -366,7 +365,6 @@ class SyncService {
           await DBService.isar.writeTxn(() async {
             await DBService.isar.scanRecords.put(record);
           });
-          savedCount++;
           
           // Download image if enabled
           await _downloadImageIfNeeded(record.id, record.imagePath);

@@ -62,7 +62,7 @@ class PaymentService {
           }
         }
       } catch (e) {
-        print("Error getting Android UPI apps: $e");
+        debugPrint("Error getting Android UPI apps: $e");
       }
     } else if (Platform.isIOS) {
       for (var app in _iosSupportedApps) {

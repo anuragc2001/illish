@@ -116,7 +116,7 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
               Container(
                 width: double.infinity,
                 height: double.infinity,
-                color: Colors.black.withOpacity(0.25), // More transparent
+                color: Colors.black.withValues(alpha: 0.25), // More transparent
                 alignment: Alignment.topCenter,
                 padding: EdgeInsets.only(
                   top:
@@ -152,12 +152,12 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
                               vertical: 14,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B).withOpacity(0.9), // Dark slate
+                              color: const Color(0xFF1E293B).withValues(alpha: 0.9), // Dark slate
                               borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.white.withOpacity(0.1)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   spreadRadius: 2,
                                   offset: const Offset(0, 8),
@@ -239,7 +239,7 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
         ), // Polaroid prints have very sharp corners
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 25,
             spreadRadius: 2,
             offset: const Offset(0, 12),
@@ -260,8 +260,8 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
           Container(
             decoration: BoxDecoration(
               border: Border.all(
-                color: Colors.black.withOpacity(
-                  0.06,
+                color: Colors.black.withValues(
+                  alpha: 0.06,
                 ), // Subtle border where photo meets paper
                 width: 1.5,
               ),
@@ -299,10 +299,10 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: Colors.cyanAccent.withOpacity(0.6),
+                              color: Colors.cyanAccent.withValues(alpha: 0.6),
                               width: 1,
                             ),
                           ),
@@ -417,8 +417,8 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
           if (!_isCapturing)
             Container(
               height: 1,
-              color: Colors.black.withOpacity(
-                0.04,
+              color: Colors.black.withValues(
+                alpha: 0.04,
               ), // Very faint line separating buttons
             ),
 
@@ -434,8 +434,8 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
                     child: Text(
                       'ILLISH AI • SCAN REPORT',
                       style: GoogleFonts.spaceMono(
-                        color: Colors.black.withOpacity(
-                          0.65,
+                        color: Colors.black.withValues(
+                          alpha: 0.65,
                         ), // Prominent stamp watermark
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -470,7 +470,7 @@ class _ShareCardPreviewState extends State<ShareCardPreview> {
                         Container(
                           width: 1,
                           height: 24,
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                         ),
                         Expanded(
                           child: TextButton.icon(

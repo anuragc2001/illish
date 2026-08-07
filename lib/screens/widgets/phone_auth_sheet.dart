@@ -6,7 +6,7 @@ import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 
 class PhoneAuthSheet extends StatefulWidget {
-  const PhoneAuthSheet({Key? key}) : super(key: key);
+  const PhoneAuthSheet({super.key});
 
   @override
   State<PhoneAuthSheet> createState() => _PhoneAuthSheetState();
@@ -99,9 +99,9 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               border: Border(
-                top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
             ),
             child: Column(
@@ -227,14 +227,14 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
         hintStyle: const TextStyle(color: Colors.white38),
         prefixIcon: Icon(icon, color: Colors.white54),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: Colors.white.withValues(alpha: 0.05),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
