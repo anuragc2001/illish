@@ -28,6 +28,12 @@ class RemoteConfigService {
   static final ValueNotifier<String> admobInterstitialIdIos = ValueNotifier(
     'ca-app-pub-3940256099942544/4411468910',
   );
+  static final ValueNotifier<String> admobRewardedInterstitialIdAndroid = ValueNotifier(
+    'ca-app-pub-3940256099942544/5354046379',
+  );
+  static final ValueNotifier<String> admobRewardedInterstitialIdIos = ValueNotifier(
+    'ca-app-pub-3940256099942544/6978759866',
+  );
   static final ValueNotifier<bool> mockMode = ValueNotifier(true);
   static final ValueNotifier<bool> enablePayment = ValueNotifier(true);
   static final ValueNotifier<bool> enableVendorPayment = ValueNotifier(true);
@@ -63,6 +69,12 @@ class RemoteConfigService {
         'admob_interstitial_id_ios':
             dotenv.env['ADMOB_INTERSTITIAL_ID_IOS'] ??
             'ca-app-pub-3940256099942544/4411468910',
+        'admob_rewarded_interstitial_id_android':
+            dotenv.env['ADMOB_REWARDED_INTERSTITIAL_ID_ANDROID'] ??
+            'ca-app-pub-3940256099942544/5354046379',
+        'admob_rewarded_interstitial_id_ios':
+            dotenv.env['ADMOB_REWARDED_INTERSTITIAL_ID_IOS'] ??
+            'ca-app-pub-3940256099942544/6978759866',
         'mock_mode': true,
         'enable_payment': true,
         'enable_vendor_payment': true,
@@ -113,8 +125,21 @@ class RemoteConfigService {
           debugPrint("Error activating updated remote config: $e");
         }
       });
+      
+      // Add a lifecycle observer to fetch config immediately when user switches back to the app
+      WidgetsBinding.instance.addObserver(_AppLifecycleObserver());
+      
     } catch (e) {
       debugPrint("Remote Config Init Error: $e");
+    }
+  }
+
+  static Future<void> forceFetch() async {
+    try {
+      await _remoteConfig.fetchAndActivate();
+      _updateNotifiers();
+    } catch (e) {
+      debugPrint("Force fetch error: $e");
     }
   }
 
@@ -132,6 +157,12 @@ class RemoteConfigService {
     admobInterstitialIdIos.value = _remoteConfig.getString(
       'admob_interstitial_id_ios',
     );
+    admobRewardedInterstitialIdAndroid.value = _remoteConfig.getString(
+      'admob_rewarded_interstitial_id_android',
+    );
+    admobRewardedInterstitialIdIos.value = _remoteConfig.getString(
+      'admob_rewarded_interstitial_id_ios',
+    );
     mockMode.value = _remoteConfig.getBool('mock_mode');
     enablePayment.value = _remoteConfig.getBool('enable_payment');
     enableVendorPayment.value = _remoteConfig.getBool('enable_vendor_payment');
@@ -148,5 +179,15 @@ class RemoteConfigService {
     if (fetchIntervalSeconds.value <= 0) fetchIntervalSeconds.value = 3600;
 
     configUpdateNotifier.value++;
+  }
+}
+
+class _AppLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Whenever the user switches back to the app from Firebase Console, force a fresh fetch
+      RemoteConfigService.forceFetch();
+    }
   }
 }

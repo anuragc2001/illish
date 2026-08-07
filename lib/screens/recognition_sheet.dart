@@ -77,14 +77,21 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
       prefs.setInt('paymentBypassCount', bypassCount + 1);
       setState(() => _isUnlocking = true);
       
-      AdMobService.showInterstitialAd(onAdDismissed: () async {
-        if (widget.scanId != null) {
-          await DBService.unlockScan(widget.scanId!);
-        }
-        if (!mounted) return;
-        Navigator.pop(context);
-        Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: widget.aiData)));
-      });
+      AdMobService.showRewardedInterstitialAd(
+        onRewardEarned: () async {
+          if (widget.scanId != null) {
+            await DBService.unlockScan(widget.scanId!);
+          }
+          if (!mounted) return;
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: widget.aiData)));
+        },
+        onAdDismissedWithoutReward: () {
+          if (!mounted) return;
+          setState(() => _isUnlocking = false);
+          // Do not navigate to the results screen, they must watch the ad!
+        },
+      );
     }
   }
 
@@ -154,7 +161,11 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
-                    widget.aiData['error'] == true ? (widget.aiData['errorType'] == 'invalid_image' ? 'NOT AQUATIC LIFE' : 'NETWORK ERROR') : (widget.aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
+                    widget.aiData['error'] == true 
+                        ? (widget.aiData['errorType'] == 'invalid_image' 
+                            ? 'NOT AQUATIC LIFE' 
+                            : (widget.aiData['errorType'] == 'api_error' ? 'API ERROR' : 'NETWORK ERROR')) 
+                        : (widget.aiData['englishName']?.toUpperCase() ?? 'UNKNOWN'),
                     style: GoogleFonts.inter(
                       fontSize: 42,
                       height: 1.1,
@@ -179,7 +190,13 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                       Icon(widget.aiData['error'] == true ? Icons.warning_amber : Icons.location_on, color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        widget.aiData['error'] == true ? (widget.aiData['errorType'] == 'offline' ? 'Offline' : (widget.aiData['errorType'] == 'invalid_image' ? 'Try Again' : 'High Latency')) : (widget.aiData['localName'] ?? 'Unknown'),
+                        widget.aiData['error'] == true 
+                            ? (widget.aiData['errorType'] == 'offline' 
+                                ? 'Offline' 
+                                : (widget.aiData['errorType'] == 'invalid_image' 
+                                    ? 'Try Again' 
+                                    : (widget.aiData['errorType'] == 'api_error' ? 'Analysis Failed' : 'High Latency'))) 
+                            : (widget.aiData['localName'] ?? 'Unknown'),
                         style: GoogleFonts.inter(
                           color: widget.aiData['error'] == true ? Colors.redAccent : AppTheme.neonCyan,
                           fontWeight: FontWeight.w600,
@@ -198,9 +215,11 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
                       child: Text(
                         widget.aiData['errorType'] == 'invalid_image' 
                             ? (widget.aiData['errorReason'] ?? 'The image doesn\'t appear to be aquatic life. Please make sure the subject is clear.')
-                            : (widget.aiData['errorType'] == 'offline' 
-                                ? 'No internet connection. Please check your network and try again.' 
-                                : 'The server took too long to respond. Please try again.'),
+                            : (widget.aiData['errorType'] == 'api_error'
+                                ? (widget.aiData['errorReason'] ?? 'An unknown API error occurred. Please try again.')
+                                : (widget.aiData['errorType'] == 'offline' 
+                                    ? 'No internet connection. Please check your network and try again.' 
+                                    : 'The server took too long to respond. Please try again.')),
                         style: GoogleFonts.inter(color: Colors.white70, fontSize: 14, height: 1.4),
                         textAlign: TextAlign.center,
                       ),

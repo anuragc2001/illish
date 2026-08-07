@@ -23,6 +23,8 @@ import 'results_screen.dart';
 import 'profile_screen.dart';
 import '../core/models/scan_record.dart';
 
+import '../main.dart'; // For routeObserver
+
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
 
@@ -31,7 +33,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+    with TickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   CameraController? _controller;
   int _cameraIndex = 0;
   late AnimationController _pulseController;
@@ -518,24 +520,47 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_controller == null || !_controller!.value.isInitialized) return;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
+  }
 
+  @override
+  void didPopNext() {
+    // Called when the top route has been popped off, and the current route shows up.
+    if (_controller != null && _controller!.value.isInitialized) {
+      _controller?.resumePreview();
+      if (mounted) setState(() {});
+    } else {
+      // Force re-initialize if the camera was lost or crashed
+      _initCamera();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _controller?.pausePreview();
     } else if (state == AppLifecycleState.resumed) {
-      _controller?.resumePreview();
+      if (_controller != null && _controller!.value.isInitialized) {
+        _controller?.resumePreview();
+      } else {
+        // Force re-initialize if the camera was lost or crashed
+        _initCamera();
+      }
 
       // Fetch location when app is brought back to foreground
       if (mounted) {
         _initLocation();
+        setState(() {}); // refresh the camera preview
       }
     }
   }
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _locationTimer?.cancel();
     _positionStreamSubscription?.cancel();
@@ -548,15 +573,6 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null || !_controller!.value.isInitialized) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.neonCyan),
-        ),
-      );
-    }
-
     final size = MediaQuery.sizeOf(context);
 
     return Scaffold(
@@ -575,7 +591,11 @@ class _CameraScreenState extends State<CameraScreen>
               fit: BoxFit.cover,
               child: SizedBox(
                 width: size.width,
-                height: size.width * _controller!.value.aspectRatio,
+                height:
+                    size.width *
+                    (_controller != null && _controller!.value.isInitialized
+                        ? _controller!.value.aspectRatio
+                        : (16 / 9)),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -1359,11 +1379,13 @@ class _SavedItemsSheetState extends State<SavedItemsSheet> {
     _scrollController.addListener(_onScroll);
     _loadData();
 
-    _dbSubscription = DBService.isar.scanRecords.watchLazy().listen((_) {
-      if (mounted) {
-        _loadData(showSpinner: false);
-      }
-    });
+    if (DBService.isInitialized) {
+      _dbSubscription = DBService.isar.scanRecords.watchLazy().listen((_) {
+        if (mounted) {
+          _loadData(showSpinner: false);
+        }
+      });
+    }
   }
 
   @override

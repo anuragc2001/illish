@@ -30,7 +30,7 @@ class _PaymentScreenState extends State<PaymentScreen>
   late Animation<Offset> _slideAnimation;
 
   // UI Switch: dynamically fetched
-  String _selectedPlan = 'weekly';
+  String _selectedPlan = 'monthly';
 
   @override
   void initState() {
@@ -413,8 +413,8 @@ class _PaymentScreenState extends State<PaymentScreen>
                                   ),
                                   TextButton(
                                     onPressed: () {
-                                      AdMobService.showInterstitialAd(
-                                        onAdDismissed: () async {
+                                      AdMobService.showRewardedInterstitialAd(
+                                        onRewardEarned: () async {
                                           if (widget.scanId != null) {
                                             await DBService.unlockScan(
                                               widget.scanId!,
@@ -468,6 +468,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                                               );
                                             }
                                           }
+                                        },
+                                        onAdDismissedWithoutReward: () {
+                                          // Do not navigate to results if ad was canceled/skipped!
                                         },
                                       );
                                     },

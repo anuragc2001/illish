@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 part 'daily_scan_aggregate.g.dart';
 
 @collection
+@Name('DailyScanAggregate')
 class DailyScanAggregate {
   Id id = Isar.autoIncrement;
 

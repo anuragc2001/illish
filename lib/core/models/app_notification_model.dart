@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 part 'app_notification_model.g.dart';
 
 @collection
+@Name('AppNotificationModel')
 class AppNotificationModel {
   Id id = Isar.autoIncrement;
 

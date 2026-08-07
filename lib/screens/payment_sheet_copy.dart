@@ -124,26 +124,31 @@ class _PaymentScreenState extends State<PaymentScreen> with TickerProviderStateM
                       ),
                       TextButton(
                         onPressed: () {
-                          AdMobService.showInterstitialAd(onAdDismissed: () {
-                            if (context.mounted) {
-                              Navigator.pushReplacement(
-                                context,
-                                PageRouteBuilder(
-                                  pageBuilder: (context, animation, secondaryAnimation) =>
-                                      ResultsScreen(aiData: widget.aiData),
-                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                    const begin = Offset(0.0, 1.0);
-                                    const end = Offset.zero;
-                                    const curve = Curves.easeOutCubic;
-                                    var tween = Tween(begin: begin, end: end)
-                                        .chain(CurveTween(curve: curve));
-                                    return SlideTransition(
-                                        position: animation.drive(tween), child: child);
-                                  },
-                                ),
-                              );
-                            }
-                          });
+                          AdMobService.showRewardedInterstitialAd(
+                            onRewardEarned: () {
+                              if (context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) =>
+                                        ResultsScreen(aiData: widget.aiData),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      const begin = Offset(0.0, 1.0);
+                                      const end = Offset.zero;
+                                      const curve = Curves.easeOutCubic;
+                                      var tween = Tween(begin: begin, end: end)
+                                          .chain(CurveTween(curve: curve));
+                                      return SlideTransition(
+                                          position: animation.drive(tween), child: child);
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                            onAdDismissedWithoutReward: () {
+                              // Do not navigate to results if ad was canceled/skipped!
+                            },
+                          );
                         },
                         child: Text(
                           'Skip',

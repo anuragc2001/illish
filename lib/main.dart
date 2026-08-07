@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -6,6 +8,8 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 
 import 'core/theme.dart';
@@ -18,6 +22,7 @@ import 'services/auth_service.dart';
 import 'services/sync_service.dart';
 import 'services/notification_service.dart';
 import 'services/payment_service.dart';
+import 'core/models/app_notification_model.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -30,6 +35,56 @@ void callbackDispatcher() {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  
+  try {
+    await DBService.initialize();
+    
+    final Map<String, dynamic> data = Map<String, dynamic>.from(message.data);
+    if (message.notification != null) {
+      data['title'] = data['title'] ?? message.notification!.title ?? 'New Notification';
+      data['subtitle'] = data['subtitle'] ?? message.notification!.body ?? '';
+    }
+    
+    final rawId = data['id'] ?? message.messageId;
+    final title = data['title'] ?? 'New Notification';
+    final timestamp = DateTime.now();
+
+    final firestoreId = (rawId != null && rawId.toString().trim().isNotEmpty)
+        ? rawId.toString().trim()
+        : '${title.replaceAll(RegExp(r'\s+'), '_')}_${(data['subtitle'] ?? '').hashCode}';
+
+    final notif = AppNotificationModel()
+      ..firestoreId = firestoreId
+      ..title = title
+      ..subtitle = data['subtitle'] ?? ''
+      ..iconName = data['icon'] ?? 'notifications_active'
+      ..timestamp = timestamp
+      ..isCleared = false;
+      
+    await DBService.saveNotification(notif);
+    
+    // Sync to Firestore immediately from background
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && notif.firestoreId.isNotEmpty) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .doc(notif.firestoreId)
+          .set({
+            'id': notif.firestoreId,
+            'title': notif.title,
+            'subtitle': notif.subtitle,
+            'icon': notif.iconName,
+            'timestamp': notif.timestamp.toIso8601String(),
+            'isCleared': false,
+          }, SetOptions(merge: true));
+    }
+    
+    debugPrint("Saved background notification directly to Isar DB and Firestore.");
+  } catch (e) {
+    debugPrint("Failed to save background notification: $e");
+  }
 }
 
 List<CameraDescription> cameras = [];
@@ -137,14 +192,17 @@ Future<void> _initSecondaryServices() async {
   }
 }
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 class IllishApp extends StatelessWidget {
   const IllishApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'illish',
+      title: 'Illish',
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [routeObserver],
       theme: AppTheme.darkTheme,
       home: const CameraScreen(),
     );

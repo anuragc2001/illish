@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 part 'scan_record.g.dart';
 
 @collection
+@Name('ScanRecord')
 class ScanRecord {
   Id id = Isar.autoIncrement;
 

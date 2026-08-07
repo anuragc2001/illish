@@ -121,7 +121,7 @@ class AIService {
     try {
       final response = await _provider
           .analyzeFish(imagePath, location)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 35));
           
       final eName = response['englishName']?.toString().trim().toLowerCase() ?? '';
       if (eName.isEmpty || eName == 'unknown' || eName == 'unknown fish') {
@@ -160,6 +160,7 @@ class AIService {
         'isOffline': false,
         'error': true,
         'errorType': 'api_error',
+        'errorReason': e.toString(),
       };
     }
   }

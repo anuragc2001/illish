@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -106,6 +108,7 @@ class NotificationService {
   }
 
   Future<void> _loadFromLocal() async {
+    // 2. Load from Isar
     final models = await DBService.getNotifications();
     notifications.value = models.map((m) => AppNotification.fromModel(m)).toList();
   }
@@ -137,7 +140,7 @@ class NotificationService {
       data['subtitle'] = data['subtitle'] ?? message.notification!.body ?? '';
     }
 
-    data['id'] = data['id'] ?? message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+    data['id'] = data['id'] ?? message.messageId;
 
     await _processIncomingNotification(data);
   }
@@ -176,7 +179,7 @@ class NotificationService {
 
     final firestoreId = (rawId != null && rawId.toString().trim().isNotEmpty)
         ? rawId.toString().trim()
-        : '${title.replaceAll(RegExp(r'\s+'), '_')}_${timestamp.millisecondsSinceEpoch}';
+        : '${title.replaceAll(RegExp(r'\s+'), '_')}_${(data['subtitle'] ?? '').hashCode}';
 
     final notif = AppNotificationModel()
       ..firestoreId = firestoreId
@@ -187,7 +190,17 @@ class NotificationService {
       ..isCleared = false;
       
     await DBService.saveNotification(notif);
-    await _loadFromLocal();
+    
+    // Manually update in-memory list instead of calling _loadFromLocal() to avoid infinite recursion
+    final appNotif = AppNotification.fromModel(notif);
+    final currentList = List<AppNotification>.from(notifications.value);
+    final existingIdx = currentList.indexWhere((n) => n.id == appNotif.id || (n.id == appNotif.id.toString()));
+    if (existingIdx >= 0) {
+      currentList[existingIdx] = appNotif;
+    } else {
+      currentList.insert(0, appNotif);
+    }
+    notifications.value = currentList;
 
     // Sync newly received FCM payload UP to Firestore so other devices (Phone B) receive it!
     final user = FirebaseAuth.instance.currentUser;

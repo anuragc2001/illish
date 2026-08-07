@@ -23,6 +23,7 @@ import '../services/sync_service.dart';
 import '../services/notification_service.dart';
 import 'widgets/freshness_meter.dart';
 import 'payment_sheet.dart';
+import '../services/remote_config_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool returnAfterSignIn;
@@ -385,6 +386,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              
+              if (!DBService.isInitialized && DBService.lastError != null)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.2),
+                    border: Border.all(color: Colors.red, width: 1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "DATABASE ERROR (PLEASE SCREENSHOT):",
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DBService.lastError!,
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
 
               // User Info & Freshness Meter
               Padding(
@@ -413,13 +439,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (!showPremium)
-                                      AppConfig.kEnablePayment ? ShimmeringPremiumButton(
-                                        onTap: () {
-                                          Navigator.push(context, MaterialPageRoute(
-                                            builder: (_) => const PaymentScreen(aiData: {}, scanId: null)
-                                          ));
+                                      ValueListenableBuilder<bool>(
+                                        valueListenable: RemoteConfigService.enablePayment,
+                                        builder: (context, paymentEnabled, child) {
+                                          return paymentEnabled ? ShimmeringPremiumButton(
+                                            onTap: () {
+                                              Navigator.push(context, MaterialPageRoute(
+                                                builder: (_) => const PaymentScreen(aiData: {}, scanId: null)
+                                              ));
+                                            },
+                                          ) : const SizedBox.shrink();
                                         },
-                                      ) : const SizedBox.shrink()
+                                      )
                                     else
                                       Text(
                                         "ILLISH PRO",
@@ -1582,7 +1613,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
                                               fontWeight: FontWeight.bold,
                                               fontSize: 13,
                                             ),
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                         Text(
@@ -1601,8 +1631,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
                                         color: Colors.white70,
                                         fontSize: 11,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),

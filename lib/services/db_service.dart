@@ -13,6 +13,7 @@ import 'sync_service.dart';
 class DBService {
   static late Isar isar;
   static bool get isInitialized => Isar.instanceNames.contains(Isar.defaultName);
+  static String? lastError;
 
   static Future<void> initialize() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -24,15 +25,34 @@ class DBService {
         inspector: kDebugMode,
       );
     } catch (e) {
+      lastError = e.toString();
       debugPrint('⚠️ Error opening Isar DB: $e');
       if (Isar.instanceNames.contains(Isar.defaultName)) {
         isar = Isar.getInstance()!;
       } else {
-        rethrow;
+        try {
+          debugPrint('⚠️ Attempting to clear and recreate Isar DB due to corruption/schema mismatch...');
+          final isarFile = File('${dir.path}/default.isar');
+          final lockFile = File('${dir.path}/default.isar.lock');
+          if (isarFile.existsSync()) isarFile.deleteSync();
+          if (lockFile.existsSync()) lockFile.deleteSync();
+          
+          isar = await Isar.open(
+            [ScanRecordSchema, RecipeCacheSchema, DailyScanAggregateSchema, AppNotificationModelSchema],
+            directory: dir.path,
+            inspector: kDebugMode,
+          );
+        } catch (retryError) {
+          lastError = retryError.toString();
+          debugPrint('⚠️ Failed to recreate Isar DB: $retryError');
+          // Do not rethrow. Let the app run in degraded mode.
+        }
       }
     }
     
-    await _migrateLegacyScansToAggregates();
+    if (isInitialized) {
+      await _migrateLegacyScansToAggregates();
+    }
   }
 
   static Future<void> _migrateLegacyScansToAggregates() async {
@@ -73,6 +93,8 @@ class DBService {
   }
 
   static Future<int> saveScan(Map<String, dynamic> aiData, {bool isBookmark = false}) async {
+    if (!isInitialized) return -1;
+    
     if (aiData['error'] == true) {
       debugPrint("DBService.saveScan: Error scan detected, skipping DB save.");
       return -1;
@@ -138,6 +160,7 @@ class DBService {
   }
 
   static Future<void> unlockAllScans() async {
+    if (!isInitialized) return;
     final lockedScans = await isar.scanRecords.filter().isUnlockedEqualTo(false).findAll();
     if (lockedScans.isEmpty) return;
 
@@ -154,6 +177,7 @@ class DBService {
   }
 
   static Future<void> unlockScan(int id) async {
+    if (!isInitialized) return;
     await isar.writeTxn(() async {
       final record = await isar.scanRecords.get(id);
       if (record != null) {
@@ -166,6 +190,7 @@ class DBService {
   }
 
   static Future<List<ScanRecord>> getRecentScans({int offset = 0, int limit = 15}) async {
+    if (!isInitialized) return [];
     return await isar.scanRecords
         .filter()
         .isHiddenEqualTo(false)
@@ -176,6 +201,7 @@ class DBService {
   }
 
   static Future<List<ScanRecord>> getBookmarks({int offset = 0, int limit = 15}) async {
+    if (!isInitialized) return [];
     return await isar.scanRecords
         .filter()
         .isBookmarkEqualTo(true)
@@ -188,6 +214,7 @@ class DBService {
   }
 
   static Future<bool> isBookmarked(int? id, String? imagePath) async {
+    if (!isInitialized) return false;
     if (id != null) {
       final record = await isar.scanRecords.get(id);
       if (record != null) return record.isBookmark;
@@ -200,6 +227,7 @@ class DBService {
   }
 
   static Future<void> setBookmarkStatus(int? id, String? imagePath, bool status) async {
+    if (!isInitialized) return;
     if (id == null && imagePath == null) return;
     await isar.writeTxn(() async {
       ScanRecord? record;
@@ -220,6 +248,7 @@ class DBService {
   }
 
   static Future<void> _cleanupImageIfUnused(String? imagePath) async {
+    if (!isInitialized) return;
     if (imagePath == null) return;
     final count = await isar.scanRecords.filter().imagePathEqualTo(imagePath).count();
     if (count == 0) {
@@ -238,6 +267,7 @@ class DBService {
   }
 
   static Future<String?> getCachedRecipes(String query) async {
+    if (!isInitialized) return null;
     final cache = await isar.recipeCaches.where().speciesQueryEqualTo(query).findFirst();
     if (cache != null && DateTime.now().difference(cache.lastUpdated).inDays < 7) {
       return cache.cachedJsonData;
@@ -246,6 +276,7 @@ class DBService {
   }
 
   static Future<void> deleteScan(int id) async {
+    if (!isInitialized) return;
     final scan = await isar.scanRecords.get(id);
     final imagePath = scan?.imagePath;
     await isar.writeTxn(() async {
@@ -259,6 +290,7 @@ class DBService {
   }
 
   static Future<void> clearRecentScans() async {
+    if (!isInitialized) return;
     final scans = await isar.scanRecords.filter().isBookmarkEqualTo(false).findAll();
     await isar.writeTxn(() async {
       await isar.scanRecords.filter().isBookmarkEqualTo(false).deleteAll();
@@ -270,6 +302,7 @@ class DBService {
   }
 
   static Future<void> hideRecentScans() async {
+    if (!isInitialized) return;
     final scans = await isar.scanRecords.filter().isBookmarkEqualTo(false).and().isHiddenEqualTo(false).findAll();
     await isar.writeTxn(() async {
       for (var scan in scans) {
@@ -284,6 +317,7 @@ class DBService {
   }
 
   static Future<void> hideScan(int id) async {
+    if (!isInitialized) return;
     ScanRecord? updatedScan;
     await isar.writeTxn(() async {
       final scan = await isar.scanRecords.get(id);
@@ -300,6 +334,7 @@ class DBService {
   }
 
   static Future<void> clearAll() async {
+    if (!isInitialized) return;
     final scans = await isar.scanRecords.where().findAll();
     await isar.writeTxn(() async {
       await isar.scanRecords.clear();
@@ -318,6 +353,7 @@ class DBService {
   }
 
   static Future<void> saveCachedRecipes(String query, String jsonData) async {
+    if (!isInitialized) return;
     final cache = RecipeCache()
       ..speciesQuery = query
       ..cachedJsonData = jsonData
@@ -351,6 +387,7 @@ class DBService {
   }
 
   static Future<void> updateDailyAggregate(ScanRecord record) async {
+    if (!isInitialized) return;
     final localTime = record.timestamp.toLocal();
     final dateKey = DateTime(localTime.year, localTime.month, localTime.day);
     
@@ -400,6 +437,7 @@ class DBService {
 
   // --- Notification Methods ---
   static Future<List<AppNotificationModel>> getNotifications() async {
+    if (!isInitialized) return [];
     return await isar.appNotificationModels
         .where()
         .sortByTimestampDesc()
@@ -407,6 +445,7 @@ class DBService {
   }
 
   static Future<void> saveNotification(AppNotificationModel notif) async {
+    if (!isInitialized) return;
     if (notif.firestoreId.isNotEmpty) {
       final existing = await isar.appNotificationModels
           .filter()
@@ -414,6 +453,7 @@ class DBService {
           .findFirst();
       if (existing != null) {
         notif.id = existing.id; // Reuse existing primary key to UPDATE instead of inserting duplicate
+        notif.timestamp = existing.timestamp; // Preserve original timestamp to prevent tap overwriting
       }
     }
     await isar.writeTxn(() async {
@@ -422,6 +462,7 @@ class DBService {
   }
 
   static Future<void> markNotificationCleared(String identifier) async {
+    if (!isInitialized) return;
     await isar.writeTxn(() async {
       // Delete by firestoreId first
       final count = await isar.appNotificationModels.filter().firestoreIdEqualTo(identifier).deleteAll();

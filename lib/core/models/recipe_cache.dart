@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 part 'recipe_cache.g.dart';
 
 @collection
+@Name('RecipeCache')
 class RecipeCache {
   Id id = Isar.autoIncrement;
   
