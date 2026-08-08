@@ -53,30 +53,15 @@ class AppNotification {
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
-  NotificationService._internal();
+  NotificationService._internal() {
+    notifications.addListener(() {
+      unreadCount.value = notifications.value.length;
+    });
+  }
 
   final ValueNotifier<List<AppNotification>> notifications = ValueNotifier<List<AppNotification>>([]);
-  
-  /* Mock data - commented out as requested
-  final ValueNotifier<List<AppNotification>> notifications = ValueNotifier<List<AppNotification>>([
-    AppNotification(
-      id: '1',
-      title: 'Freshness Streak ⚡',
-      subtitle: 'You scanned 3 fresh fish this week! Great selection.',
-      time: '2h ago',
-      icon: Icons.bolt,
-    ),
-    // ...
-  ]);
-  */
+  final ValueNotifier<int> unreadCount = ValueNotifier<int>(0);
 
-  ValueNotifier<int> get unreadCount {
-    final notifier = ValueNotifier<int>(notifications.value.length);
-    notifications.addListener(() {
-      notifier.value = notifications.value.length;
-    });
-    return notifier;
-  }
 
   StreamSubscription<QuerySnapshot>? _firestoreSub;
   StreamSubscription<User?>? _authSub;

@@ -294,7 +294,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                                     ),
                                   );
                                 } else {
-                                  Navigator.pop(context); // pop payment sheet
+                                  Navigator.popUntil(context, (route) => route.isFirst);
                                 }
                               }
                             },

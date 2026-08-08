@@ -893,8 +893,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               // Grid of days wrapped in PageView for perfect swipe interaction
               SizedBox(
-                height:
-                    255, // Reduced gap from 300 to 255 to perfectly fit 6 rows
+                height: 275, // Expanded height to comfortably fit 6 rows without edge overlap
                 child: PageView.builder(
                   controller: _pageController,
                   onPageChanged: (index) {
@@ -1540,7 +1539,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       barrierDismissible: true,
       barrierLabel: "Dismiss",
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         return Align(
           alignment: Alignment.topRight,
@@ -1548,18 +1547,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.only(top: 80, right: 24),
             child: Material(
               color: Colors.transparent,
-              child: FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.95, end: 1.0).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeOut),
-                  ),
+              child: ScaleTransition(
+                alignment: Alignment.topRight,
+                scale: Tween<double>(begin: 0.0, end: 1.0).animate(
+                  CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                ),
+                child: FadeTransition(
+                  opacity: animation,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
+                child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                       child: Container(
-                        width: 200,
+                        width: 230,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
@@ -1589,12 +1589,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       size: 18,
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
-                                      "Show Support",
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
+                                    Expanded(
+                                      child: Text(
+                                        "Show Support",
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Divider(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              height: 1,
+                            ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                // TODO: Implement Developer Info
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        "Developer Info",
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Divider(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              height: 1,
+                            ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                // TODO: Open Privacy Policy URL
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.privacy_tip_outlined,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        "Privacy Policy",
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Divider(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              height: 1,
+                            ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                // TODO: Open Terms of Service URL
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.description_outlined,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        "Terms of Service",
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
@@ -1624,12 +1742,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         size: 18,
                                       ),
                                       const SizedBox(width: 12),
-                                      Text(
-                                        "Sign Out",
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white70,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
+                                      Expanded(
+                                        child: Text(
+                                          "Sign Out",
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white70,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],

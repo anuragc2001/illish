@@ -187,50 +187,89 @@ class PaymentService {
   /// Initialize RevenueCat with placeholder API keys until production keys are ready.
   static Future<void> initRevenueCat() async {
     try {
-      // TODO: Replace with real RevenueCat API keys from Remote Config or .env before publish
-      final String apiKey = Platform.isAndroid 
-          ? 'goog_placeholder_api_key' 
-          : 'appl_placeholder_api_key';
+      final String apiKey = RemoteConfigService.revenuecatApiKey.value;
 
       await Purchases.setLogLevel(LogLevel.debug);
-      
+
       PurchasesConfiguration configuration = PurchasesConfiguration(apiKey);
       await Purchases.configure(configuration);
-      
+
       _isRevenueCatInitialized = true;
-      debugPrint("RevenueCat configured successfully.");
+      debugPrint(
+        "✅ [REVENUECAT INIT SUCCESS] Configured with API key: ${apiKey.isNotEmpty ? apiKey.substring(0, 8) : ''}...",
+      );
     } catch (e) {
-      debugPrint("Failed to initialize RevenueCat: $e");
+      debugPrint("❌ [REVENUECAT INIT ERROR] Failed to initialize: $e");
       _isRevenueCatInitialized = false;
     }
   }
 
-  /// Attempts a real Google Play Billing flow via RevenueCat, falling back to mock UI if unconfigured.
+  static String _mapPlanIdToProductId(String planId) {
+    if (planId == 'weekly') return 'illish_weekly_29';
+    if (planId == 'monthly') return 'illish_monthly_99';
+    if (planId == 'annual') return 'illish_annual_499';
+    return planId;
+  }
+
   static Future<bool> startGooglePlayCheckout({
     required String planId,
     required double amount,
   }) async {
-    debugPrint("Starting Google Play Billing for plan: $planId ($amount)");
-    
+    final productId = _mapPlanIdToProductId(planId);
+    debugPrint(
+      "🛒 [REVENUECAT GOOGLE PLAY] Attempting purchase for plan: $planId (Product ID: $productId, Amount: ₹$amount)",
+    );
+
     if (_isRevenueCatInitialized) {
       try {
-        CustomerInfo customerInfo = await Purchases.purchaseProduct(planId);
-        // Assuming 'premium' is the entitlement identifier in RevenueCat dashboard
+        CustomerInfo customerInfo = await Purchases.purchaseProduct(productId);
+
         if (customerInfo.entitlements.all['premium']?.isActive == true) {
-          debugPrint("Google Play Billing successful via RevenueCat!");
+          debugPrint(
+            "🎉 [REVENUECAT REAL PURCHASE SUCCESS] Product $productId purchased successfully via Google Play!",
+          );
+          // Grant Premium Access
+          AppConfig.isPremiumUser = true;
+          AppConfig.isPremiumNotifier.value = true;
+          await SyncService.upgradeUserToPremium(planId);
+          await DBService.unlockAllScans();
           return true;
+        } else {
+          debugPrint(
+            "⚠️ [REVENUECAT PURCHASE INACTIVE] Purchase completed but 'premium' entitlement is not active. Check entitlement ID in RevenueCat dashboard.",
+          );
+        }
+      } on PlatformException catch (e) {
+        var errorCode = PurchasesErrorHelper.getErrorCode(e);
+        if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
+          debugPrint("ℹ️ [REVENUECAT] User cancelled Google Play purchase.");
+          return false;
+        } else {
+          debugPrint(
+            "❌ [REVENUECAT ERROR] Google Play purchase failed (Error Code ${e.code}): ${e.message}",
+          );
         }
       } catch (e) {
-        debugPrint("RevenueCat Purchase Error: $e");
-        // Fallback to Mock if it fails due to placeholder keys/configuration
-        debugPrint("Falling back to Google Play mock flow...");
+        debugPrint("❌ [REVENUECAT EXCEPTION] $e");
       }
+    } else {
+      debugPrint("⚠️ [REVENUECAT] SDK not initialized.");
     }
-    
-    // Simulate native Google Play bottom sheet UI loading delay (Mock Fallback)
-    await Future.delayed(const Duration(seconds: 2));
-    debugPrint("Google Play Billing successful (MOCK FALLBACK).");
-    return true; 
+
+    // MOCK FALLBACK for development/testing when products are unconfigured in Google Play Console
+    if (kDebugMode || AppConfig.kMockMode) {
+      debugPrint(
+        "🧪 [REVENUECAT MOCK FALLBACK] Store product unconfigured or dev mode active. Simulating successful test checkout...",
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      AppConfig.isPremiumUser = true;
+      AppConfig.isPremiumNotifier.value = true;
+      await SyncService.upgradeUserToPremium(planId);
+      await DBService.unlockAllScans();
+      return true;
+    }
+
+    return false;
   }
 
   /// Attempts a real Apple App Store In-App Purchase via RevenueCat, falling back to mock UI if unconfigured.
@@ -238,27 +277,75 @@ class PaymentService {
     required String planId,
     required double amount,
   }) async {
-    debugPrint("Starting Apple App Store Billing for plan: $planId ($amount)");
-    
+    final productId = _mapPlanIdToProductId(planId);
+    debugPrint(
+      "🛒 [REVENUECAT APP STORE] Attempting purchase for plan: $planId (Product ID: $productId, Amount: ₹$amount)",
+    );
+
     if (_isRevenueCatInitialized) {
       try {
-        CustomerInfo customerInfo = await Purchases.purchaseProduct(planId);
-        // Assuming 'premium' is the entitlement identifier in RevenueCat dashboard
+        CustomerInfo customerInfo = await Purchases.purchaseProduct(productId);
+
         if (customerInfo.entitlements.all['premium']?.isActive == true) {
-          debugPrint("Apple App Store Billing successful via RevenueCat!");
+          debugPrint(
+            "🎉 [REVENUECAT REAL PURCHASE SUCCESS] Product $productId purchased successfully via Apple App Store!",
+          );
+          // Grant Premium Access
+          AppConfig.isPremiumUser = true;
+          AppConfig.isPremiumNotifier.value = true;
+          await SyncService.upgradeUserToPremium(planId);
+          await DBService.unlockAllScans();
           return true;
+        } else {
+          debugPrint(
+            "⚠️ [REVENUECAT PURCHASE INACTIVE] Purchase completed but 'premium' entitlement is not active. Check entitlement ID in RevenueCat dashboard.",
+          );
+        }
+      } on PlatformException catch (e) {
+        var errorCode = PurchasesErrorHelper.getErrorCode(e);
+        if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
+          debugPrint("ℹ️ [REVENUECAT] User cancelled App Store purchase.");
+          return false;
+        } else {
+          debugPrint(
+            "❌ [REVENUECAT ERROR] App Store purchase failed (Error Code ${e.code}): ${e.message}",
+          );
         }
       } catch (e) {
-        debugPrint("RevenueCat Purchase Error: $e");
-        // Fallback to Mock if it fails due to placeholder keys/configuration
-        debugPrint("Falling back to Apple App Store mock flow...");
+        debugPrint("❌ [REVENUECAT EXCEPTION] $e");
       }
+    } else {
+      debugPrint("⚠️ [REVENUECAT] SDK not initialized.");
     }
 
-    // Simulate native FaceID / TouchID dialog delay (Mock Fallback)
-    await Future.delayed(const Duration(seconds: 2));
-    debugPrint("Apple App Store Billing successful (MOCK FALLBACK).");
-    return true; 
+    // MOCK FALLBACK for development/testing when products are unconfigured in App Store Connect
+    if (kDebugMode || AppConfig.kMockMode) {
+      debugPrint(
+        "🧪 [REVENUECAT MOCK FALLBACK] Store product unconfigured or dev mode active. Simulating successful test checkout...",
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      AppConfig.isPremiumUser = true;
+      AppConfig.isPremiumNotifier.value = true;
+      await SyncService.upgradeUserToPremium(planId);
+      await DBService.unlockAllScans();
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Launch native subscription management center URL
+  static Future<void> launchSubscriptionManagement() async {
+    final String url = Platform.isIOS
+        ? 'https://apps.apple.com/account/subscriptions'
+        : 'https://play.google.com/store/account/subscriptions';
+
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint("Could not launch subscription management URL");
+    }
   }
 
   static void dispose() {

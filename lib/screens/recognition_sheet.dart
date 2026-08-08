@@ -54,7 +54,7 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
     final prefs = await SharedPreferences.getInstance();
     int bypassCount = prefs.getInt('paymentBypassCount') ?? 0;
     
-    if (AppConfig.kEnablePayment && bypassCount % 3 == 0) {
+    if (AppConfig.kEnablePayment && bypassCount > 0 && bypassCount % 3 == 0) {
       prefs.setInt('paymentBypassCount', bypassCount + 1);
       
       setState(() => _isUnlocking = true);
@@ -82,13 +82,14 @@ class _RecognitionSheetState extends State<RecognitionSheet> with SingleTickerPr
             await DBService.unlockScan(widget.scanId!);
           }
           if (!mounted) return;
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(aiData: widget.aiData)));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => ResultsScreen(aiData: widget.aiData)),
+          );
         },
         onAdDismissedWithoutReward: () {
           if (!mounted) return;
           setState(() => _isUnlocking = false);
-          // Do not navigate to the results screen, they must watch the ad!
         },
       );
     }

@@ -45,6 +45,9 @@ class RemoteConfigService {
     'rzp_test_your_key_here',
   );
   static final ValueNotifier<String> razorpayLogoUrl = ValueNotifier('');
+  static final ValueNotifier<String> revenuecatApiKey = ValueNotifier(
+    'test_oGuQAGauVpzvALdhGXEXePuPFRy',
+  );
   static final ValueNotifier<int> fetchIntervalSeconds = ValueNotifier(
     3600,
   ); // 1 hour
@@ -85,6 +88,7 @@ class RemoteConfigService {
         'razorpay_key_id':
             dotenv.env['RAZORPAY_KEY_ID'] ?? 'rzp_test_your_key_here',
         'razorpay_logo_url': dotenv.env['RAZORPAY_LOGO_URL'] ?? '',
+        'revenuecat_api_key': dotenv.env['REVENUECAT_API_KEY'] ?? 'test_oGuQAGauVpzvALdhGXEXePuPFRy',
         'fetch_interval_seconds': 3600,
       });
 
@@ -172,7 +176,8 @@ class RemoteConfigService {
     showSinglePrice.value = _remoteConfig.getBool('show_single_price');
     razorpayKeyId.value = _remoteConfig.getString('razorpay_key_id');
     razorpayLogoUrl.value = _remoteConfig.getString('razorpay_logo_url');
-
+    revenuecatApiKey.value = _remoteConfig.getString('revenuecat_api_key');
+    
     // fetch_interval_seconds could be int, so getInt
     fetchIntervalSeconds.value = _remoteConfig.getInt('fetch_interval_seconds');
     if (fetchIntervalSeconds.value <= 0) fetchIntervalSeconds.value = 3600;

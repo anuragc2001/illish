@@ -48,8 +48,8 @@ class _CameraScreenState extends State<CameraScreen>
   bool _isFlashOn = false;
   bool _isPickerOpen = false;
   bool _isUIHidden = false;
+  bool _isCameraError = false;
   final ImagePicker _picker = ImagePicker();
-  Timer? _locationTimer; // Deprecated, kept for reference if needed
   StreamSubscription<Position>? _positionStreamSubscription;
 
   double _currentZoom = 1.0;
@@ -148,26 +148,29 @@ class _CameraScreenState extends State<CameraScreen>
       }
     }
 
-    if (cameras.isNotEmpty) {
-      _controller = CameraController(
-        cameras[_cameraIndex],
-        ResolutionPreset.high,
-        enableAudio: false,
-      );
-      
-      // Trigger a rebuild so the UI shows the loading spinner while the camera initializes
+    if (cameras.isEmpty) {
+      if (mounted) setState(() => _isCameraError = true);
+      return;
+    }
+
+    _controller = CameraController(
+      cameras[_cameraIndex],
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+    
+    // Trigger a rebuild so the UI shows the loading spinner while the camera initializes
+    if (mounted) setState(() {});
+    
+    try {
+      await _controller!.initialize();
+      await _controller!.setFocusMode(FocusMode.auto);
+      _minZoom = await _controller!.getMinZoomLevel();
+      final maxZ = await _controller!.getMaxZoomLevel();
+      _maxZoom = maxZ.clamp(1.0, 5.0);
       if (mounted) setState(() {});
-      
-      try {
-        await _controller!.initialize();
-        await _controller!.setFocusMode(FocusMode.auto);
-        _minZoom = await _controller!.getMinZoomLevel();
-        final maxZ = await _controller!.getMaxZoomLevel();
-        _maxZoom = maxZ.clamp(1.0, 5.0);
-        if (mounted) setState(() {});
-      } on CameraException catch (e) {
-        debugPrint('Camera exception: ${e.code}');
-      }
+    } on CameraException catch (e) {
+      debugPrint('Camera exception: ${e.code}');
     }
   }
 
@@ -493,6 +496,7 @@ class _CameraScreenState extends State<CameraScreen>
         savedId = await DBService.saveScan(result, isBookmark: false);
         result['id'] = savedId;
       }
+      if (!mounted) return;
       setState(() => _isUIHidden = true);
       await showModalBottomSheet(
         context: context,
@@ -566,7 +570,6 @@ class _CameraScreenState extends State<CameraScreen>
   void dispose() {
     routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
-    _locationTimer?.cancel();
     _positionStreamSubscription?.cancel();
     _controller?.dispose();
     _pulseController.dispose();
@@ -650,11 +653,19 @@ class _CameraScreenState extends State<CameraScreen>
                             : Container(
                                 key: const ValueKey('empty'),
                                 color: Colors.black,
-                                child: const Center(
-                                  child: CupertinoActivityIndicator(
-                                    color: Colors.white54,
-                                    radius: 16,
-                                  ),
+                                child: Center(
+                                  child: _isCameraError
+                                      ? Text(
+                                          'Camera Unavailable',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white54,
+                                            fontSize: 14,
+                                          ),
+                                        )
+                                      : const CupertinoActivityIndicator(
+                                          color: Colors.white54,
+                                          radius: 16,
+                                        ),
                                 ),
                               ),
                       ),

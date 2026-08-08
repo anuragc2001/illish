@@ -124,20 +124,18 @@ class DBService {
       ..isBookmark = isBookmark
       ..isUnlocked = AppConfig.isPremiumUser;
 
+    List<ScanRecord> oldScans = [];
     await isar.writeTxn(() async {
       await isar.scanRecords.put(record);
       
       // Update Daily Aggregate
       await updateDailyAggregate(record);
       
-      // Async fire-and-forget sync to Firestore
-      SyncService.upsertScanRecord(record);
-      
       if (!isBookmark) {
         // Retain scans on a 30-day rolling basis.
         // Anything older than 30 days from right now is archived.
         final cutoffDate = now.subtract(const Duration(days: 30));
-        final oldScans = await isar.scanRecords
+        oldScans = await isar.scanRecords
             .filter()
             .isBookmarkEqualTo(false)
             .timestampLessThan(cutoffDate)
@@ -146,14 +144,19 @@ class DBService {
         if (oldScans.isNotEmpty) {
           final toDelete = oldScans.map((e) => e.id).toList();
           await isar.scanRecords.deleteAll(toDelete);
-          
-          for (var scan in oldScans) {
-            await _cleanupImageIfUnused(scan.imagePath);
-            await SyncService.archiveScanRecord(scan.id); // Deletes cloud image & flags as archived
-          }
         }
       }
     });
+
+    // Safely sync to Firestore outside transaction
+    await SyncService.upsertScanRecord(record);
+
+    if (!isBookmark && oldScans.isNotEmpty) {
+      for (var scan in oldScans) {
+        await _cleanupImageIfUnused(scan.imagePath);
+        await SyncService.archiveScanRecord(scan.id); // Deletes cloud image & flags as archived
+      }
+    }
     
     return record.id;
   }
@@ -228,8 +231,10 @@ class DBService {
   static Future<void> setBookmarkStatus(int? id, String? imagePath, bool status) async {
     if (!isInitialized) return;
     if (id == null && imagePath == null) return;
+    
+    ScanRecord? record;
+    
     await isar.writeTxn(() async {
-      ScanRecord? record;
       if (id != null) {
         record = await isar.scanRecords.get(id);
       }
@@ -239,11 +244,15 @@ class DBService {
       }
       
       if (record != null) {
-        record.isBookmark = status;
-        await isar.scanRecords.put(record);
-        SyncService.upsertScanRecord(record);
+        record!.isBookmark = status;
+        await isar.scanRecords.put(record!);
       }
     });
+
+    // Sync outside txn
+    if (record != null) {
+      await SyncService.upsertScanRecord(record!);
+    }
   }
 
   static Future<void> _cleanupImageIfUnused(String? imagePath) async {
@@ -282,8 +291,8 @@ class DBService {
       await isar.scanRecords.delete(id);
     });
     
-    // Async fire-and-forget sync archive (soft delete)
-    SyncService.archiveScanRecord(id);
+    // Sync archive (soft delete) outside txn
+    await SyncService.archiveScanRecord(id);
     
     await _cleanupImageIfUnused(imagePath);
   }
@@ -295,7 +304,7 @@ class DBService {
       await isar.scanRecords.filter().isBookmarkEqualTo(false).deleteAll();
     });
     for (var scan in scans) {
-      SyncService.archiveScanRecord(scan.id); // Soft delete from Firebase cloud
+      await SyncService.archiveScanRecord(scan.id); // Soft delete from Firebase cloud
       await _cleanupImageIfUnused(scan.imagePath);
     }
   }
@@ -311,7 +320,7 @@ class DBService {
     });
     // Sync the hidden status to Firebase for all updated scans
     for (var scan in scans) {
-      SyncService.upsertScanRecord(scan);
+      await SyncService.upsertScanRecord(scan);
     }
   }
 
@@ -328,7 +337,7 @@ class DBService {
     });
     // Sync the hidden status to Firebase
     if (updatedScan != null) {
-      SyncService.upsertScanRecord(updatedScan!);
+      await SyncService.upsertScanRecord(updatedScan!);
     }
   }
 
@@ -385,16 +394,16 @@ class DBService {
     return normalized.toUpperCase();
   }
 
-  static Future<void> updateDailyAggregate(ScanRecord record) async {
+  static Future<void> updateDailyAggregate(ScanRecord record, {bool inTxn = true}) async {
     if (!isInitialized) return;
     final localTime = record.timestamp.toLocal();
     final dateKey = DateTime(localTime.year, localTime.month, localTime.day);
     
     DailyScanAggregate? aggregate = await isar.dailyScanAggregates.filter().dateEqualTo(dateKey).findFirst();
     aggregate ??= DailyScanAggregate()
-        ..date = dateKey
-        ..totalScans = 0
-        ..fishCounts = [];
+      ..date = dateKey
+      ..totalScans = 0
+      ..fishCounts = [];
 
     aggregate.totalScans += 1;
 
@@ -426,17 +435,29 @@ class DBService {
     aggregate.fishCounts = newFishCounts;
     aggregate.topFishName = topFish;
 
-    await isar.dailyScanAggregates.put(aggregate);
+    if (inTxn) {
+      await isar.dailyScanAggregates.put(aggregate!);
+    } else {
+      await isar.writeTxn(() async {
+        await isar.dailyScanAggregates.put(aggregate!);
+      });
+    }
     
-    // Async fire-and-forget sync to Firebase
-    SyncService.upsertDailyAggregate(aggregate);
+    // Sync to Firebase outside transaction blocking
+    if (!inTxn) {
+      await SyncService.upsertDailyAggregate(aggregate!);
+    } else {
+      // If we are in a transaction (like saveScan), defer sync to avoid blocking Isar write thread
+      Future.microtask(() => SyncService.upsertDailyAggregate(aggregate!));
+    }
   }
 
   // --- Notification Methods ---
   static Future<List<AppNotificationModel>> getNotifications() async {
     if (!isInitialized) return [];
     return await isar.appNotificationModels
-        .where()
+        .filter()
+        .isClearedEqualTo(false)
         .sortByTimestampDesc()
         .findAll();
   }

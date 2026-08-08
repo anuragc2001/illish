@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:illish/core/models/upi_app.dart';
+import 'package:illish/services/payment_service.dart';
+import 'package:flutter/services.dart';
+import 'dart:io';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('UpiResponse parsing', () {
     test('Parses successful Android UPI response string', () {
       final data = {
@@ -58,6 +62,38 @@ void main() {
       expect(response.status, 'UNKNOWN');
       expect(response.isSuccess, isFalse);
       expect(response.isFailed, isFalse);
+    });
+  });
+
+  group('PaymentService Tests', () {
+    const MethodChannel channel = MethodChannel('com.anuragchak.illish/upi');
+    final List<MethodCall> log = <MethodCall>[];
+
+    setUp(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        log.add(methodCall);
+        if (methodCall.method == 'getInstalledUpiApps') {
+          return [
+            {'packageName': 'com.google.android.apps.nbu.paisa.user', 'appName': 'GPay'},
+          ];
+        }
+        return null;
+      });
+      log.clear();
+    });
+
+    test('getAvailableUpiApps returns mocked data on Android', () async {
+      // Mock Android behavior via the platform channel
+      final apps = await PaymentService.getAvailableUpiApps();
+      
+      if (Platform.isAndroid) {
+        expect(apps.isNotEmpty, true);
+        expect(apps.first.name, 'GPay');
+      } else if (Platform.isIOS) {
+        expect(apps.length, 6);
+        expect(apps.first.name, 'Google Pay');
+      }
     });
   });
 }
